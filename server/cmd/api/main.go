@@ -68,10 +68,11 @@ func run(log *slog.Logger) error {
 	authHandler.Routes(mux)
 	garage.NewHandler(garage.NewStore(pool), log).Routes(mux, authHandler.RequireUser)
 	recognize.NewHandler(recognize.GeminiConfig{
-		BaseURL:    cfg.GeminiBaseURL,
-		Model:      cfg.GeminiModel,
-		APIKey:     cfg.GeminiAPIKey,
-		RelayToken: cfg.GeminiRelayToken,
+		BaseURL:       cfg.GeminiBaseURL,
+		Model:         cfg.GeminiModel,
+		APIKey:        cfg.GeminiAPIKey,
+		RelayToken:    cfg.GeminiRelayToken,
+		ThinkingLevel: cfg.GeminiThinking,
 	}, log).Routes(mux, authHandler.RequireUser)
 
 	srv := &http.Server{

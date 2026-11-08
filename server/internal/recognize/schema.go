@@ -30,6 +30,10 @@ var (
 	eventTypes = []string{"replacement", "purchase", "fluid_service", "repair", "inspection"}
 	docKinds   = []string{"fiscal_receipt", "work_order", "handwritten", "other"}
 	lineKinds  = []string{"part", "fluid", "labor", "other"}
+	axles      = []string{"front", "rear"}
+	sides      = []string{"left", "right"}
+	// Only these systems take an axle or side (POSITIONED_CATEGORIES in lib/types.ts).
+	positioned = []string{"suspension", "brakes", "tires"}
 )
 
 // noComponent is the enum value the model picks when no listed component fits.
@@ -92,6 +96,8 @@ type modelOutput struct {
 		Component         string  `json:"component"`
 		SuggestedName     *string `json:"suggestedName"`
 		SuggestedCategory *string `json:"suggestedCategory"`
+		SuggestedAxle     *string `json:"suggestedAxle"`
+		SuggestedSide     *string `json:"suggestedSide"`
 		EventType         string  `json:"eventType"`
 		Uncertain         bool    `json:"uncertain"`
 	} `json:"items"`
@@ -126,8 +132,10 @@ type Item struct {
 }
 
 type SuggestedComponent struct {
-	Name     string `json:"name"`
-	Category string `json:"category"`
+	Name     string  `json:"name"`
+	Category string  `json:"category"`
+	Axle     *string `json:"axle,omitempty"`
+	Side     *string `json:"side,omitempty"`
 }
 
 // responseSchema constrains Gemini's JSON. The component enum lists only
@@ -160,7 +168,7 @@ func responseSchema(components []ContextComponent) map[string]any {
 		"propertyOrdering": []string{"kind", "date", "mileageKm", "currency", "total", "shop"},
 	}
 	itemOrder := []string{"title", "lineKind", "cost", "component", "suggestedName",
-		"suggestedCategory", "eventType", "uncertain"}
+		"suggestedCategory", "suggestedAxle", "suggestedSide", "eventType", "uncertain"}
 	item := map[string]any{
 		"type": "OBJECT",
 		"properties": map[string]any{
@@ -170,6 +178,8 @@ func responseSchema(components []ContextComponent) map[string]any {
 			"component":         enum(labels, false),
 			"suggestedName":     str("Название нового компонента, если component = none"),
 			"suggestedCategory": enum(categories, true),
+			"suggestedAxle":     enum(axles, true),
+			"suggestedSide":     enum(sides, true),
 			"eventType":         enum(eventTypes, false),
 			"uncertain":         map[string]any{"type": "BOOLEAN"},
 		},
@@ -255,16 +265,31 @@ func normalize(out modelOutput, components []ContextComponent, today time.Time) 
 		}
 		if id, ok := componentID(x.Component, components); ok {
 			it.ComponentID = &id
-		} else if name := optText(x.SuggestedName, maxNameLen); name != nil && it.LineKind != "labor" {
-			cat := "other"
-			if x.SuggestedCategory != nil {
-				cat = oneOf(*x.SuggestedCategory, categories, "other")
-			}
-			it.SuggestedComponent = &SuggestedComponent{Name: *name, Category: cat}
+		} else if name := optText(x.SuggestedName, maxNameLen); name != nil {
+			it.SuggestedComponent = suggested(*name, x.SuggestedCategory, x.SuggestedAxle, x.SuggestedSide)
 		}
 		res.Items = append(res.Items, it)
 	}
 	return res
+}
+
+// suggested builds a new-component proposal. Axle and side are kept only
+// for the systems the app positions, as its forms do.
+func suggested(name string, category, axle, side *string) *SuggestedComponent {
+	sc := &SuggestedComponent{Name: name, Category: "other"}
+	if category != nil {
+		sc.Category = oneOf(*category, categories, "other")
+	}
+	if !slices.Contains(positioned, sc.Category) {
+		return sc
+	}
+	if axle != nil && slices.Contains(axles, *axle) {
+		sc.Axle = axle
+	}
+	if side != nil && slices.Contains(sides, *side) {
+		sc.Side = side
+	}
+	return sc
 }
 
 func componentID(lbl string, components []ContextComponent) (string, bool) {

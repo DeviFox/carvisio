@@ -17,9 +17,12 @@ import (
 // (deploy/gemini-relay.Caddyfile), which adds the API key itself.
 type GeminiConfig struct {
 	BaseURL    string // e.g. http://127.0.0.1:8090 (the tunnel to the relay)
-	Model      string // e.g. gemini-2.5-flash
+	Model      string // e.g. gemini-3.8-flash
 	APIKey     string // empty when the relay adds it
 	RelayToken string // sent as X-Relay-Token; empty without a relay
+	// ThinkingLevel trades accuracy for time on Gemini 3 models: "minimal",
+	// "low", "medium" or "high". Empty keeps the model's default.
+	ThinkingLevel string
 }
 
 type gemini struct {
@@ -45,6 +48,13 @@ var errUnreadable = errors.New("model returned no usable answer")
 // into out. A 429 or 5xx is retried once.
 func (g *gemini) generate(ctx context.Context, file []byte, mimeType, system, user string,
 	schema map[string]any, out any) (usage, error) {
+	genConfig := map[string]any{
+		"responseMimeType": "application/json",
+		"responseSchema":   schema,
+	}
+	if g.cfg.ThinkingLevel != "" {
+		genConfig["thinkingConfig"] = map[string]any{"thinkingLevel": g.cfg.ThinkingLevel}
+	}
 	body, err := json.Marshal(map[string]any{
 		"systemInstruction": map[string]any{"parts": []any{map[string]any{"text": system}}},
 		"contents": []any{map[string]any{
@@ -57,11 +67,7 @@ func (g *gemini) generate(ctx context.Context, file []byte, mimeType, system, us
 				map[string]any{"text": user},
 			},
 		}},
-		"generationConfig": map[string]any{
-			"temperature":      0,
-			"responseMimeType": "application/json",
-			"responseSchema":   schema,
-		},
+		"generationConfig": genConfig,
 	})
 	if err != nil {
 		return usage{}, err

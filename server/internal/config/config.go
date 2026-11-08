@@ -26,6 +26,7 @@ type Config struct {
 	GeminiModel      string
 	GeminiAPIKey     string // only when calling Gemini directly; the relay adds its own
 	GeminiRelayToken string // X-Relay-Token the relay expects
+	GeminiThinking   string // thinkingLevel for Gemini 3; empty = model default
 }
 
 func Load() (Config, error) {
@@ -40,9 +41,10 @@ func Load() (Config, error) {
 		AllowedOrigins: splitList(os.Getenv("ALLOWED_ORIGINS")),
 
 		GeminiBaseURL:    strings.TrimRight(os.Getenv("GEMINI_BASE_URL"), "/"),
-		GeminiModel:      getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+		GeminiModel:      getenv("GEMINI_MODEL", "gemini-3.8-flash"),
 		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
 		GeminiRelayToken: os.Getenv("GEMINI_RELAY_TOKEN"),
+		GeminiThinking:   os.Getenv("GEMINI_THINKING_LEVEL"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
@@ -53,6 +55,12 @@ func Load() (Config, error) {
 
 	if cfg.GeminiBaseURL != "" && cfg.GeminiAPIKey == "" && cfg.GeminiRelayToken == "" {
 		return Config{}, errors.New("GEMINI_BASE_URL needs GEMINI_API_KEY or GEMINI_RELAY_TOKEN")
+	}
+
+	switch cfg.GeminiThinking {
+	case "", "minimal", "low", "medium", "high":
+	default:
+		return Config{}, fmt.Errorf("GEMINI_THINKING_LEVEL: %q is not minimal, low, medium or high", cfg.GeminiThinking)
 	}
 
 	var err error

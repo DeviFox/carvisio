@@ -78,8 +78,12 @@ func TestNormalizeDropsBadValues(t *testing.T) {
 			 "eventType": "fluid_service", "uncertain": false},
 			{"title": "Фильтр салона", "lineKind": "part", "cost": "??", "component": "c9",
 			 "suggestedName": "Салонный фильтр", "suggestedCategory": "nonsense", "eventType": "explode"},
-			{"title": "Работа", "lineKind": "labor", "component": "none",
-			 "suggestedName": "Работа", "eventType": "repair"},
+			{"title": "Замена подшипника ступицы пер. прав.", "lineKind": "labor", "component": "none",
+			 "suggestedName": "Ступичный подшипник", "suggestedCategory": "suspension",
+			 "suggestedAxle": "front", "suggestedSide": "right", "eventType": "replacement"},
+			{"title": "Лампа", "lineKind": "part", "component": "none", "suggestedName": "Лампа ближнего",
+			 "suggestedCategory": "electrical", "suggestedAxle": "front", "suggestedSide": "sideways",
+			 "eventType": "replacement"},
 			{"title": "   ", "lineKind": "part", "component": "none", "eventType": "repair"}
 		],
 		"warnings": ["Чек помят"]
@@ -95,10 +99,10 @@ func TestNormalizeDropsBadValues(t *testing.T) {
 	if d.Currency == nil || *d.Currency != "RUB" {
 		t.Errorf("currency = %v; want RUB", d.Currency)
 	}
-	if len(res.Items) != 3 {
-		t.Fatalf("items = %d; want 3 (blank title dropped)", len(res.Items))
+	if len(res.Items) != 4 {
+		t.Fatalf("items = %d; want 4 (blank title dropped)", len(res.Items))
 	}
-	oil, filter, labor := res.Items[0], res.Items[1], res.Items[2]
+	oil, filter, labor, lamp := res.Items[0], res.Items[1], res.Items[2], res.Items[3]
 	if oil.ComponentID == nil || *oil.ComponentID != "id-2" || *oil.CostMinorUnits != 320000 {
 		t.Errorf("oil = %+v", oil)
 	}
@@ -106,8 +110,13 @@ func TestNormalizeDropsBadValues(t *testing.T) {
 		filter.SuggestedComponent == nil || filter.SuggestedComponent.Category != "other" {
 		t.Errorf("filter = %+v", filter)
 	}
-	if labor.SuggestedComponent != nil {
-		t.Errorf("labor got a suggested component: %+v", labor.SuggestedComponent)
+	if sc := labor.SuggestedComponent; sc == nil || sc.Category != "suspension" ||
+		sc.Axle == nil || *sc.Axle != "front" || sc.Side == nil || *sc.Side != "right" {
+		t.Errorf("labor suggestion = %+v; want suspension, front right", sc)
+	}
+	// Electrical parts are not positioned in the app: axle and side are dropped.
+	if sc := lamp.SuggestedComponent; sc == nil || sc.Axle != nil || sc.Side != nil {
+		t.Errorf("lamp suggestion = %+v; want no position", sc)
 	}
 	if len(res.Warnings) < 4 || res.Warnings[0] != "Чек помят" {
 		t.Errorf("warnings = %q", res.Warnings)
@@ -131,7 +140,7 @@ func TestRecognizeEndToEnd(t *testing.T) {
 	}))
 	defer fake.Close()
 
-	h := NewHandler(GeminiConfig{BaseURL: fake.URL, Model: "test-model", RelayToken: "secret"},
+	h := NewHandler(GeminiConfig{BaseURL: fake.URL, Model: "test-model", RelayToken: "secret", ThinkingLevel: "low"},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	front := "front"
 	ctx := Context{Components: []ContextComponent{{ID: "11111111-1111-1111-1111-111111111111",
@@ -154,6 +163,12 @@ func TestRecognizeEndToEnd(t *testing.T) {
 
 	// The schema offers exactly this request's labels and the prompt names the axle.
 	schema, _ := json.Marshal(gotReq["generationConfig"])
+	if !strings.Contains(string(schema), `"thinkingConfig":{"thinkingLevel":"low"}`) {
+		t.Errorf("thinking level missing: %s", schema)
+	}
+	if strings.Contains(string(schema), "temperature") {
+		t.Errorf("temperature must be left to the model: %s", schema)
+	}
 	if !strings.Contains(string(schema), `"enum":["c1","none"]`) {
 		t.Errorf("component enum missing from schema: %s", schema)
 	}
