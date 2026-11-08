@@ -21,3 +21,10 @@
 {"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/cmd/api/main.go","timestamp":1793607184527,"sessionId":null}
 {"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/internal/db/db.go","timestamp":1793607235491,"sessionId":null}
 {"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/migrations/00003_garage.sql","timestamp":1793677597636,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/internal/recognize/schema.go","timestamp":1793975173727,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/internal/recognize/prompt.go","timestamp":1793975187948,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/server/internal/recognize/recognize_test.go","timestamp":1793975278245,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/deploy/gemini-relay.Caddyfile","timestamp":1793978489891,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/deploy/gemini-tunnel.service","timestamp":1793978490017,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/deploy/gemini-tunnel.service","timestamp":1794119455615,"sessionId":null}
+{"type":"edit","file":"/Users/olegsv/Projects/carfolio/deploy/gemini-tunnel.service","timestamp":1794120223630,"sessionId":null}

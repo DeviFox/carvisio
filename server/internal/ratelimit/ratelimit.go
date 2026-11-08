@@ -1,13 +1,14 @@
-package auth
+// Package ratelimit counts hits per key in fixed time windows.
+package ratelimit
 
 import (
 	"sync"
 	"time"
 )
 
-// limiter allows up to limit hits per key within a fixed time window.
+// Limiter allows up to limit hits per key within a fixed time window.
 // It lives in memory, which is enough for a single server instance.
-type limiter struct {
+type Limiter struct {
 	mu     sync.Mutex
 	limit  int
 	window time.Duration
@@ -19,11 +20,11 @@ type bucket struct {
 	start time.Time
 }
 
-func newLimiter(limit int, window time.Duration) *limiter {
-	return &limiter{limit: limit, window: window, hits: make(map[string]*bucket)}
+func New(limit int, window time.Duration) *Limiter {
+	return &Limiter{limit: limit, window: window, hits: make(map[string]*bucket)}
 }
 
-func (l *limiter) Allow(key string) bool {
+func (l *Limiter) Allow(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -41,7 +42,7 @@ func (l *limiter) Allow(key string) bool {
 	return b.count <= l.limit
 }
 
-func (l *limiter) Reset(key string) {
+func (l *Limiter) Reset(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.hits, key)
@@ -49,7 +50,7 @@ func (l *limiter) Reset(key string) {
 
 // purge drops expired buckets so the map does not grow without bound.
 // Caller must hold l.mu.
-func (l *limiter) purge(now time.Time) {
+func (l *Limiter) purge(now time.Time) {
 	for k, b := range l.hits {
 		if now.Sub(b.start) > l.window {
 			delete(l.hits, k)

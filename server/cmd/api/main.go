@@ -16,6 +16,7 @@ import (
 	"github.com/DeviFox/carfolio/server/internal/garage"
 	"github.com/DeviFox/carfolio/server/internal/httpx"
 	"github.com/DeviFox/carfolio/server/internal/mailer"
+	"github.com/DeviFox/carfolio/server/internal/recognize"
 )
 
 func main() {
@@ -66,6 +67,12 @@ func run(log *slog.Logger) error {
 	})
 	authHandler.Routes(mux)
 	garage.NewHandler(garage.NewStore(pool), log).Routes(mux, authHandler.RequireUser)
+	recognize.NewHandler(recognize.GeminiConfig{
+		BaseURL:    cfg.GeminiBaseURL,
+		Model:      cfg.GeminiModel,
+		APIKey:     cfg.GeminiAPIKey,
+		RelayToken: cfg.GeminiRelayToken,
+	}, log).Routes(mux, authHandler.RequireUser)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

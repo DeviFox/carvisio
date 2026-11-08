@@ -1,0 +1,51 @@
+# Relay to the Gemini API, run on a machine in a country Gemini serves.
+#
+# The relay takes no connections from outside. It opens an SSH reverse
+# tunnel to the API server (deploy/gemini-tunnel.service), so the API
+# reaches it at http://127.0.0.1:8090 on its own host, and SSH carries the
+# traffic. Caddy adds the API key, so the API server never holds it.
+#
+# Setup on the relay:
+#   sudo apt install caddy
+#   sudo cp gemini-relay.Caddyfile /etc/caddy/Caddyfile
+#   /etc/systemd/system/caddy.service.d/secrets.conf:
+#     [Service]
+#     Environment=GEMINI_API_KEY=AIza...
+#     Environment=RELAY_TOKEN=<openssl rand -hex 32>
+#   sudo systemctl daemon-reload && sudo systemctl restart caddy
+#
+# The same RELAY_TOKEN goes into GEMINI_RELAY_TOKEN in /etc/carfolio/api.env.
+
+{
+	auto_https off
+}
+
+:8090 {
+	bind 127.0.0.1
+
+	# Tunnel traffic arrives from localhost; the token keeps out anything
+	# else running on either machine.
+	@allowed {
+		header X-Relay-Token {$RELAY_TOKEN}
+		path /v1beta/models/*
+	}
+
+	handle @allowed {
+		request_body {
+			max_size 12MB
+		}
+		reverse_proxy https://generativelanguage.googleapis.com {
+			header_up Host generativelanguage.googleapis.com
+			header_up X-Goog-Api-Key {$GEMINI_API_KEY}
+			header_up -X-Relay-Token
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			transport http {
+				response_header_timeout 90s
+			}
+		}
+	}
+
+	respond 403
+}

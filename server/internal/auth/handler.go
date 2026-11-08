@@ -16,6 +16,7 @@ import (
 	"github.com/DeviFox/carfolio/server/internal/httpx"
 	"github.com/DeviFox/carfolio/server/internal/mailer"
 	"github.com/DeviFox/carfolio/server/internal/password"
+	"github.com/DeviFox/carfolio/server/internal/ratelimit"
 )
 
 const (
@@ -36,9 +37,9 @@ type Handler struct {
 	log    *slog.Logger
 	opts   Options
 
-	ipLimiter    *limiter
-	emailLimiter *limiter // failed logins per email
-	resetLimiter *limiter // reset emails per address
+	ipLimiter    *ratelimit.Limiter
+	emailLimiter *ratelimit.Limiter // failed logins per email
+	resetLimiter *ratelimit.Limiter // reset emails per address
 
 	// Hash of a throwaway password. Login verifies against it when the email
 	// is unknown, so both cases take the same time.
@@ -55,9 +56,9 @@ func NewHandler(store *Store, m mailer.Mailer, log *slog.Logger, opts Options) (
 		mailer:       m,
 		log:          log,
 		opts:         opts,
-		ipLimiter:    newLimiter(50, 15*time.Minute),
-		emailLimiter: newLimiter(10, 15*time.Minute),
-		resetLimiter: newLimiter(3, 15*time.Minute),
+		ipLimiter:    ratelimit.New(50, 15*time.Minute),
+		emailLimiter: ratelimit.New(10, 15*time.Minute),
+		resetLimiter: ratelimit.New(3, 15*time.Minute),
 		dummyHash:    dummy,
 	}, nil
 }

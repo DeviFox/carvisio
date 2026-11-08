@@ -20,6 +20,12 @@ type Config struct {
 	CookieSecure   bool     // set the Secure flag on the session cookie
 	TrustProxy     bool     // take the client IP from X-Real-IP
 	AllowedOrigins []string // frontend origins allowed to call the API (CORS + CSRF check)
+
+	// Document recognition. Off while GeminiBaseURL is empty.
+	GeminiBaseURL    string // the relay (deploy/gemini-relay.Caddyfile) or Gemini itself
+	GeminiModel      string
+	GeminiAPIKey     string // only when calling Gemini directly; the relay adds its own
+	GeminiRelayToken string // X-Relay-Token the relay expects
 }
 
 func Load() (Config, error) {
@@ -32,12 +38,21 @@ func Load() (Config, error) {
 		HTTPAddr:       getenv("HTTP_ADDR", ":8080"),
 		AppURL:         strings.TrimRight(os.Getenv("APP_URL"), "/"),
 		AllowedOrigins: splitList(os.Getenv("ALLOWED_ORIGINS")),
+
+		GeminiBaseURL:    strings.TrimRight(os.Getenv("GEMINI_BASE_URL"), "/"),
+		GeminiModel:      getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
+		GeminiRelayToken: os.Getenv("GEMINI_RELAY_TOKEN"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
 	}
 	if cfg.AppURL == "" {
 		return Config{}, errors.New("APP_URL is required")
+	}
+
+	if cfg.GeminiBaseURL != "" && cfg.GeminiAPIKey == "" && cfg.GeminiRelayToken == "" {
+		return Config{}, errors.New("GEMINI_BASE_URL needs GEMINI_API_KEY or GEMINI_RELAY_TOKEN")
 	}
 
 	var err error
