@@ -1,6 +1,6 @@
 // Package recognize turns a photo or PDF of a receipt, a work order or a
-// handwritten note into a draft of service records. Gemini reads the
-// document; the draft goes back to the browser for review and is never
+// handwritten note into a draft of service records. A vision model behind
+// OpenRouter reads the document; the draft goes back to the browser for review and is never
 // stored here, and neither is the file.
 package recognize
 
@@ -21,32 +21,33 @@ import (
 )
 
 const (
-	maxFileBytes    = 8 << 20 // the browser downsizes photos well below this
+	maxFileBytes    = 8 << 20 // PDFs; the browser downsizes photos well below this
+	maxImageBytes   = 5 << 20 // Claude's per-image limit
 	maxContextBytes = 128 << 10
 	maxBodyBytes    = maxFileBytes + maxContextBytes + 64<<10 // + multipart overhead
 	dailyLimit      = 30                                      // recognitions per user
-	maxInFlight     = 4                                       // concurrent Gemini calls; each holds the file in memory
+	maxInFlight     = 4                                       // concurrent model calls; each holds the file in memory
 	requestTimeout  = 90 * time.Second
 )
 
 type Handler struct {
-	gemini  *gemini // nil when not configured
+	model   *openRouter // nil when not configured
 	limiter *ratelimit.Limiter
 	slots   chan struct{}
 	log     *slog.Logger
 	now     func() time.Time
 }
 
-// NewHandler returns a handler that answers 503 when cfg has no BaseURL.
-func NewHandler(cfg GeminiConfig, log *slog.Logger) *Handler {
+// NewHandler returns a handler that answers 503 when cfg has no APIKey.
+func NewHandler(cfg Config, log *slog.Logger) *Handler {
 	h := &Handler{
 		limiter: ratelimit.New(dailyLimit, 24*time.Hour),
 		slots:   make(chan struct{}, maxInFlight),
 		log:     log,
 		now:     time.Now,
 	}
-	if cfg.BaseURL != "" {
-		h.gemini = newGemini(cfg)
+	if cfg.APIKey != "" {
+		h.model = newOpenRouter(cfg)
 	}
 	return h
 }
@@ -56,7 +57,7 @@ func (h *Handler) Routes(mux *http.ServeMux, requireUser func(http.Handler) http
 }
 
 func (h *Handler) recognize(w http.ResponseWriter, r *http.Request) {
-	if h.gemini == nil {
+	if h.model == nil {
 		httpx.Error(w, http.StatusServiceUnavailable, "recognition is not configured")
 		return
 	}
@@ -87,10 +88,10 @@ func (h *Handler) recognize(w http.ResponseWriter, r *http.Request) {
 	start := h.now()
 	today := start.UTC()
 	var out modelOutput
-	use, err := h.gemini.generate(ctx, file, mimeType, systemPrompt, userPrompt(rc.Components, today),
+	use, err := h.model.generate(ctx, file, mimeType, systemPrompt, userPrompt(rc.Components, today),
 		responseSchema(rc.Components), &out)
 	logAttrs := []any{"user", user.ID, "mime", mimeType, "bytes", len(file),
-		"ms", time.Since(start).Milliseconds(), "promptTokens", use.PromptTokens, "outputTokens", use.OutputTokens}
+		"ms", time.Since(start).Milliseconds(), "promptTokens", use.PromptTokens, "outputTokens", use.OutputTokens, "costUSD", use.Cost}
 	if err != nil {
 		h.log.Warn("recognition failed", append(logAttrs, "err", err)...)
 		if errors.Is(err, errUnreadable) {
@@ -159,7 +160,10 @@ func readRequest(w http.ResponseWriter, r *http.Request) (file []byte, mimeType 
 		return nil, "", rc, http.StatusBadRequest, err.Error()
 	}
 	if mimeType = detectType(file); mimeType == "" {
-		return nil, "", rc, http.StatusUnsupportedMediaType, "supported files: JPEG, PNG, WebP, HEIC, PDF"
+		return nil, "", rc, http.StatusUnsupportedMediaType, "supported files: JPEG, PNG, WebP, PDF"
+	}
+	if mimeType != "application/pdf" && len(file) > maxImageBytes {
+		return nil, "", rc, http.StatusRequestEntityTooLarge, "photo is too large (max 5 MB)"
 	}
 	return file, mimeType, rc, 0, ""
 }
@@ -186,20 +190,13 @@ func tooLargeOr(err error, msg string) ([]byte, string, Context, int, string) {
 }
 
 // detectType sniffs the file instead of trusting the client's
-// Content-Type. Returns "" for anything Gemini should not get.
+// Content-Type. Returns "" for anything the model should not get. HEIC
+// (iPhone photos) is not accepted by Claude; the browser converts photos to
+// JPEG while downsizing them.
 func detectType(b []byte) string {
 	switch t := http.DetectContentType(b); t {
 	case "image/jpeg", "image/png", "image/webp", "application/pdf":
 		return t
-	}
-	// HEIC (iPhone photos): an ISO BMFF "ftyp" box with a HEIF brand.
-	if len(b) >= 12 && string(b[4:8]) == "ftyp" {
-		switch string(b[8:12]) {
-		case "heic", "heix", "heim", "heis", "hevc", "hevx":
-			return "image/heic"
-		case "mif1", "msf1":
-			return "image/heif"
-		}
 	}
 	return ""
 }

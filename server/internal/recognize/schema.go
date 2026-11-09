@@ -79,7 +79,7 @@ func (c *Context) Validate() error {
 // mistype, unlike a UUID.
 func label(i int) string { return "c" + strconv.Itoa(i+1) }
 
-// modelOutput is what Gemini returns, shaped by responseSchema below.
+// modelOutput is what the model returns, shaped by responseSchema below.
 type modelOutput struct {
 	Document struct {
 		Kind      string  `json:"kind"`
@@ -138,8 +138,10 @@ type SuggestedComponent struct {
 	Side     *string `json:"side,omitempty"`
 }
 
-// responseSchema constrains Gemini's JSON. The component enum lists only
-// this request's labels, so the model cannot invent a component.
+// responseSchema is the JSON Schema for the model's answer, sent with
+// strict structured output. The component enum lists only this request's
+// labels, so the model cannot invent a component. Strict mode wants every
+// property required and no extra ones; "may be missing" is spelled as null.
 func responseSchema(components []ContextComponent) map[string]any {
 	labels := make([]string, 0, len(components)+1)
 	for i := range components {
@@ -147,55 +149,43 @@ func responseSchema(components []ContextComponent) map[string]any {
 	}
 	labels = append(labels, noComponent)
 
-	str := func(desc string) map[string]any {
-		return map[string]any{"type": "STRING", "nullable": true, "description": desc}
+	nullable := func(t map[string]any, desc string) map[string]any {
+		return map[string]any{"anyOf": []any{t, map[string]any{"type": "null"}}, "description": desc}
 	}
-	enum := func(values []string, nullable bool) map[string]any {
-		return map[string]any{"type": "STRING", "enum": values, "nullable": nullable}
+	str := func(desc string) map[string]any { return nullable(map[string]any{"type": "string"}, desc) }
+	enum := func(values []string) map[string]any { return map[string]any{"type": "string", "enum": values} }
+	object := func(props map[string]any, order []string) map[string]any {
+		return map[string]any{"type": "object", "properties": props, "required": order, "additionalProperties": false}
 	}
 
-	document := map[string]any{
-		"type": "OBJECT",
-		"properties": map[string]any{
-			"kind":      enum(docKinds, false),
-			"date":      str("Дата работ или покупки, YYYY-MM-DD"),
-			"mileageKm": map[string]any{"type": "INTEGER", "nullable": true, "description": "Пробег в км"},
-			"currency":  str("Код валюты ISO 4217, например RUB"),
-			"total":     str("Итоговая сумма числом, например 4520.00"),
-			"shop":      str("Название сервиса или магазина"),
-		},
-		"required":         []string{"kind", "date", "mileageKm", "currency", "total", "shop"},
-		"propertyOrdering": []string{"kind", "date", "mileageKm", "currency", "total", "shop"},
-	}
-	itemOrder := []string{"title", "lineKind", "cost", "component", "suggestedName",
-		"suggestedCategory", "suggestedAxle", "suggestedSide", "eventType", "uncertain"}
-	item := map[string]any{
-		"type": "OBJECT",
-		"properties": map[string]any{
-			"title":             map[string]any{"type": "STRING"},
-			"lineKind":          enum(lineKinds, false),
-			"cost":              str("Стоимость строки числом, например 3200.00"),
-			"component":         enum(labels, false),
-			"suggestedName":     str("Название нового компонента, если component = none"),
-			"suggestedCategory": enum(categories, true),
-			"suggestedAxle":     enum(axles, true),
-			"suggestedSide":     enum(sides, true),
-			"eventType":         enum(eventTypes, false),
-			"uncertain":         map[string]any{"type": "BOOLEAN"},
-		},
-		"required":         itemOrder,
-		"propertyOrdering": itemOrder,
-	}
-	return map[string]any{
-		"type": "OBJECT",
-		"properties": map[string]any{
-			"document": document,
-			"items":    map[string]any{"type": "ARRAY", "items": item},
-			"warnings": map[string]any{"type": "ARRAY", "items": map[string]any{"type": "STRING"}},
-		},
-		"required":         []string{"document", "items", "warnings"},
-		"propertyOrdering": []string{"document", "items", "warnings"},
-	}
+	document := object(map[string]any{
+		"kind":      enum(docKinds),
+		"date":      str("Дата работ или покупки, YYYY-MM-DD"),
+		"mileageKm": nullable(map[string]any{"type": "integer"}, "Пробег в км"),
+		"currency":  str("Код валюты ISO 4217, например RUB"),
+		"total":     str("Итоговая сумма числом, например 4520.00"),
+		"shop":      str("Название сервиса или магазина"),
+	}, []string{"kind", "date", "mileageKm", "currency", "total", "shop"})
+
+	item := object(map[string]any{
+		"title":             map[string]any{"type": "string"},
+		"lineKind":          enum(lineKinds),
+		"cost":              str("Стоимость строки числом, например 3200.00"),
+		"component":         enum(labels),
+		"suggestedName":     str("Название нового компонента, если component = none"),
+		"suggestedCategory": nullable(enum(categories), "Категория нового компонента"),
+		"suggestedAxle":     nullable(enum(axles), "Ось, если указана"),
+		"suggestedSide":     nullable(enum(sides), "Сторона, если указана"),
+		"eventType":         enum(eventTypes),
+		"uncertain":         map[string]any{"type": "boolean"},
+	}, []string{"title", "lineKind", "cost", "component", "suggestedName",
+		"suggestedCategory", "suggestedAxle", "suggestedSide", "eventType", "uncertain"})
+
+	return object(map[string]any{
+		"document": document,
+		"items":    map[string]any{"type": "array", "items": item},
+		"warnings": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	}, []string{"document", "items", "warnings"})
 }
 
 // normalize turns the model's output into a Result. The model is not

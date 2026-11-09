@@ -58,7 +58,7 @@ func TestDetectType(t *testing.T) {
 		"jpeg": {[]byte("\xff\xd8\xff\xe0\x00\x10JFIF"), "image/jpeg"},
 		"png":  {[]byte("\x89PNG\r\n\x1a\n\x00\x00"), "image/png"},
 		"pdf":  {[]byte("%PDF-1.7\n"), "application/pdf"},
-		"heic": {heic, "image/heic"},
+		"heic": {heic, ""}, // Claude does not take HEIC; the browser sends JPEG
 		"text": {[]byte("hello"), ""},
 		"html": {[]byte("<html><body>"), ""},
 	} {
@@ -123,31 +123,43 @@ func TestNormalizeDropsBadValues(t *testing.T) {
 	}
 }
 
-func TestRecognizeEndToEnd(t *testing.T) {
-	var gotReq map[string]any
-	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1beta/models/test-model:generateContent" || r.Header.Get("X-Relay-Token") != "secret" {
-			t.Errorf("unexpected request %s token=%q", r.URL.Path, r.Header.Get("X-Relay-Token"))
+// fakeOpenRouter answers chat/completions with content and records the
+// request it got.
+func fakeOpenRouter(t *testing.T, content string, gotReq *map[string]any) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" || r.Header.Get("Authorization") != "Bearer key" {
+			t.Errorf("unexpected request %s auth=%q", r.URL.Path, r.Header.Get("Authorization"))
 		}
-		json.NewDecoder(r.Body).Decode(&gotReq)
-		answer := `{"document":{"kind":"work_order","date":"2025-10-01","mileageKm":120500,"currency":"RUB",
-			"total":"5400","shop":"Сервис"},"items":[{"title":"Колодки передние","lineKind":"part",
-			"cost":"2400","component":"c1","eventType":"replacement","uncertain":false}],"warnings":[]}`
+		json.NewDecoder(r.Body).Decode(gotReq)
 		json.NewEncoder(w).Encode(map[string]any{
-			"candidates":    []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": answer}}}, "finishReason": "STOP"}},
-			"usageMetadata": map[string]any{"promptTokenCount": 1000, "candidatesTokenCount": 100},
+			"choices": []any{map[string]any{"message": map[string]any{"content": content}, "finish_reason": "stop"}},
+			"usage":   map[string]any{"prompt_tokens": 1000, "completion_tokens": 100, "cost": 0.0005},
 		})
 	}))
+}
+
+func newTestHandler(baseURL string) *Handler {
+	return NewHandler(Config{APIKey: "key", Model: "test/model", BaseURL: baseURL, ReasoningEffort: "low"},
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+const padsAnswer = `{"document":{"kind":"work_order","date":"2025-10-01","mileageKm":120500,"currency":"RUB",
+	"total":"5400","shop":"Сервис"},"items":[{"title":"Колодки передние","lineKind":"part",
+	"cost":"2400","component":"c1","suggestedName":null,"suggestedCategory":null,"suggestedAxle":null,
+	"suggestedSide":null,"eventType":"replacement","uncertain":false}],"warnings":[]}`
+
+func TestRecognizeEndToEnd(t *testing.T) {
+	var gotReq map[string]any
+	// Some models wrap JSON in a code fence even under structured output.
+	fake := fakeOpenRouter(t, "```json\n"+padsAnswer+"\n```", &gotReq)
 	defer fake.Close()
 
-	h := NewHandler(GeminiConfig{BaseURL: fake.URL, Model: "test-model", RelayToken: "secret", ThinkingLevel: "low"},
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	front := "front"
 	ctx := Context{Components: []ContextComponent{{ID: "11111111-1111-1111-1111-111111111111",
 		Name: "Тормозные колодки", Category: "brakes", Axle: &front}}}
-
 	rec := httptest.NewRecorder()
-	h.recognize(rec, multipartRequest(t, []byte("\xff\xd8\xff\xe0\x00\x10JFIF fake"), ctx))
+	newTestHandler(fake.URL).recognize(rec, multipartRequest(t, []byte("\xff\xd8\xff\xe0\x00\x10JFIF fake"), ctx))
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
@@ -161,26 +173,67 @@ func TestRecognizeEndToEnd(t *testing.T) {
 		t.Errorf("items = %+v", res.Items)
 	}
 
-	// The schema offers exactly this request's labels and the prompt names the axle.
-	schema, _ := json.Marshal(gotReq["generationConfig"])
-	if !strings.Contains(string(schema), `"thinkingConfig":{"thinkingLevel":"low"}`) {
-		t.Errorf("thinking level missing: %s", schema)
+	req, _ := json.Marshal(gotReq)
+	for _, want := range []string{
+		`"model":"test/model"`,
+		`"reasoning":{"effort":"low"}`,
+		`"strict":true`,
+		`"data_collection":"deny"`,     // receipts carry personal data
+		`"enum":["c1","none"]`,         // only this request's components
+		`"additionalProperties":false`, // strict mode
+		`"type":"image_url"`,           // a photo goes as an image
+		`data:image/jpeg;base64,`,      // inline, not a URL
+		`c1: Тормозные колодки [brakes, перед]`, // the prompt names the axle
+	} {
+		if !strings.Contains(string(req), want) {
+			t.Errorf("request lacks %s:\n%s", want, req)
+		}
 	}
-	if strings.Contains(string(schema), "temperature") {
-		t.Errorf("temperature must be left to the model: %s", schema)
+	if strings.Contains(string(req), "temperature") {
+		t.Errorf("temperature must be left to the model (Claude rejects it): %s", req)
 	}
-	if !strings.Contains(string(schema), `"enum":["c1","none"]`) {
-		t.Errorf("component enum missing from schema: %s", schema)
+}
+
+func TestRecognizeSendsPDFAsFile(t *testing.T) {
+	var gotReq map[string]any
+	fake := fakeOpenRouter(t, padsAnswer, &gotReq)
+	defer fake.Close()
+
+	rec := httptest.NewRecorder()
+	newTestHandler(fake.URL).recognize(rec, multipartRequest(t, []byte("%PDF-1.7\n..."), Context{}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
-	contents, _ := json.Marshal(gotReq["contents"])
-	if !strings.Contains(string(contents), "c1: Тормозные колодки [brakes, перед]") {
-		t.Errorf("component list missing from prompt: %s", contents)
+	req, _ := json.Marshal(gotReq)
+	if !strings.Contains(string(req), `"type":"file"`) || !strings.Contains(string(req), `data:application/pdf;base64,`) {
+		t.Errorf("PDF not sent as a file part: %s", req)
+	}
+}
+
+func TestRecognizeUpstreamErrorIn200(t *testing.T) {
+	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"error":{"code":400,"message":"provider rejected the image"}}`))
+	}))
+	defer fake.Close()
+
+	rec := httptest.NewRecorder()
+	newTestHandler(fake.URL).recognize(rec, multipartRequest(t, []byte("\xff\xd8\xff\xe0 fake"), Context{}))
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("status %d; want 502", rec.Code)
+	}
+}
+
+func TestRecognizeRejectsLargePhoto(t *testing.T) {
+	big := append([]byte("\xff\xd8\xff\xe0\x00\x10JFIF"), make([]byte, maxImageBytes)...)
+	rec := httptest.NewRecorder()
+	newTestHandler("http://unused").recognize(rec, multipartRequest(t, big, Context{}))
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("status %d; want 413", rec.Code)
 	}
 }
 
 func TestRecognizeRejectsBadFile(t *testing.T) {
-	h := NewHandler(GeminiConfig{BaseURL: "http://unused", Model: "m", RelayToken: "t"},
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := newTestHandler("http://unused")
 	rec := httptest.NewRecorder()
 	h.recognize(rec, multipartRequest(t, []byte("<html>not an image</html>"), Context{}))
 	if rec.Code != http.StatusUnsupportedMediaType {
@@ -189,7 +242,7 @@ func TestRecognizeRejectsBadFile(t *testing.T) {
 }
 
 func TestRecognizeNotConfigured(t *testing.T) {
-	h := NewHandler(GeminiConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := NewHandler(Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	rec := httptest.NewRecorder()
 	h.recognize(rec, multipartRequest(t, []byte("%PDF-1.7"), Context{}))
 	if rec.Code != http.StatusServiceUnavailable {

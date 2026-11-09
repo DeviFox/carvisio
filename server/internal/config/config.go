@@ -21,12 +21,10 @@ type Config struct {
 	TrustProxy     bool     // take the client IP from X-Real-IP
 	AllowedOrigins []string // frontend origins allowed to call the API (CORS + CSRF check)
 
-	// Document recognition. Off while GeminiBaseURL is empty.
-	GeminiBaseURL    string // the relay (deploy/gemini-relay.Caddyfile) or Gemini itself
-	GeminiModel      string
-	GeminiAPIKey     string // only when calling Gemini directly; the relay adds its own
-	GeminiRelayToken string // X-Relay-Token the relay expects
-	GeminiThinking   string // thinkingLevel for Gemini 3; empty = model default
+	// Document recognition through OpenRouter. Off while the key is empty.
+	OpenRouterAPIKey string
+	OpenRouterModel  string
+	OpenRouterEffort string // reasoning effort: low, medium, high; empty = model default
 }
 
 func Load() (Config, error) {
@@ -40,11 +38,9 @@ func Load() (Config, error) {
 		AppURL:         strings.TrimRight(os.Getenv("APP_URL"), "/"),
 		AllowedOrigins: splitList(os.Getenv("ALLOWED_ORIGINS")),
 
-		GeminiBaseURL:    strings.TrimRight(os.Getenv("GEMINI_BASE_URL"), "/"),
-		GeminiModel:      getenv("GEMINI_MODEL", "gemini-3.8-flash"),
-		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
-		GeminiRelayToken: os.Getenv("GEMINI_RELAY_TOKEN"),
-		GeminiThinking:   os.Getenv("GEMINI_THINKING_LEVEL"),
+		OpenRouterAPIKey: os.Getenv("OPENROUTER_API_KEY"),
+		OpenRouterModel:  getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5"),
+		OpenRouterEffort: os.Getenv("OPENROUTER_REASONING_EFFORT"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
@@ -53,14 +49,10 @@ func Load() (Config, error) {
 		return Config{}, errors.New("APP_URL is required")
 	}
 
-	if cfg.GeminiBaseURL != "" && cfg.GeminiAPIKey == "" && cfg.GeminiRelayToken == "" {
-		return Config{}, errors.New("GEMINI_BASE_URL needs GEMINI_API_KEY or GEMINI_RELAY_TOKEN")
-	}
-
-	switch cfg.GeminiThinking {
-	case "", "minimal", "low", "medium", "high":
+	switch cfg.OpenRouterEffort {
+	case "", "low", "medium", "high":
 	default:
-		return Config{}, fmt.Errorf("GEMINI_THINKING_LEVEL: %q is not minimal, low, medium or high", cfg.GeminiThinking)
+		return Config{}, fmt.Errorf("OPENROUTER_REASONING_EFFORT: %q is not low, medium or high", cfg.OpenRouterEffort)
 	}
 
 	var err error
