@@ -2,6 +2,7 @@ import Link from "next/link";
 import styles from "@/app/page.module.css";
 import { GarageIcon, HelpIcon, SettingsIcon } from "./icons";
 import AccountControl from "./account-control";
+import ThemeToggle from "./theme-toggle";
 
 type Props = {
   // Below the garage the garage icon is the way home; on the garage it marks where you are.
@@ -38,6 +39,8 @@ export default function AppBar({ home, onHelp, bare }: Props) {
             <HelpIcon />
           </button>
         ) : null}
+        {/* Kept on auth pages too: a dark-room visitor should not get a white form. */}
+        <ThemeToggle />
         {bare ? null : (
           <>
             <AccountControl />

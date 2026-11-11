@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+
   /* surfaces */
   --surface: #f8fafc;
   --card: #ffffff;
@@ -53,6 +55,47 @@
   --fs-lg: 20px;
   --fs-xl: 28px;
   --fs-2xl: 36px;
+}
+
+/* ───────── Dark theme ─────────
+   Keyed off <html data-theme="dark">, which the boot script in app/layout.tsx
+   resolves from the owner's choice or the OS before first paint. Same slate
+   family as the light world, inverted: raised surfaces get lighter, not
+   shadowier. accent turns light, so its ink turns dark (the button text, the
+   brand-mark letter). State inks become pale tints for the dark pill washes. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #0b1120;
+  --card: #111a2b;
+  --card-raised: #172236;
+  --overlay: rgba(2, 6, 18, 0.62);
+
+  --ink: #e7ecf3;
+  --body: #aab6c7;
+  --muted: #8794a9;
+  --faint: #5d6b80;
+  --ghost: #334157;
+
+  --line: #222d42;
+  --line-strong: #33415a;
+  --line-dash: #4b5a72;
+
+  --accent: #6ea8fe;
+  --accent-hover: #9cc3ff;
+  --accent-soft: #16294a;
+  --accent-ink: #0b1120;
+
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --ok-ink: #6ee7b7;
+  --warn-ink: #fcd34d;
+  --danger-ink: #fca5a5;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 24px 48px rgba(0, 0, 0, 0.5);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,7 +164,9 @@ html, body { overflow-x: clip; }
 /* Keep the scrollbar's space when a modal locks scrolling, so the page doesn't jump sideways. */
 html { scrollbar-gutter: stable; }
 
-/* ───────── Anatomy / iso-kit primitives (scoped to .iso wrapper) ───────── */
+/* ───────── Anatomy / iso-kit primitives (scoped to .iso wrapper) ─────────
+   "light" here is the paint of the car, not the page theme: the drawn cars and
+   the pictures are both a white car, so it stays light on the dark page too. */
 .iso[data-theme="light"] {
   --anatomy-paper: #ffffff;
   --anatomy-face: #fbfcfe;

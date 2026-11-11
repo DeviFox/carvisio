@@ -62,10 +62,10 @@
   0%, 100% { opacity: 0.26; }
   50% { opacity: 0.5; }
 }
-.badge-attention { color: #f59e0b; }
-.badge-attention .badgeDot { fill: #f59e0b; }
-.badge-critical { color: #ef4444; }
-.badge-critical .badgeDot { fill: #ef4444; }
+.badge-attention { color: var(--warn); }
+.badge-attention .badgeDot { fill: var(--warn); }
+.badge-critical { color: var(--danger); }
+.badge-critical .badgeDot { fill: var(--danger); }
 
 /* ─── Hover label ─── */
 .labels { pointer-events: none; }
@@ -93,13 +93,12 @@
   overflow: hidden;
   user-select: none;
 }
-/* The picture sits on near-white; multiply drops that box into the card and
-   keeps the drawn ground shadow. */
+/* The pictures are cut out with an alpha ground shadow in slate ink, so they
+   sit on any card in either theme as they are; no blend mode. */
 .picture {
   position: absolute;
   max-width: none;
   height: auto;
-  mix-blend-mode: multiply;
   pointer-events: none;
 }
 .rasterZones {

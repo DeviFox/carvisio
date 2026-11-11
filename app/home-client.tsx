@@ -6,6 +6,7 @@ import styles from "./page.module.css";
 import AddCarDialog from "@/components/add-car-dialog";
 import AppBar, { VersionTag } from "@/components/app-bar";
 import AccountControl from "@/components/account-control";
+import ThemeToggle from "@/components/theme-toggle";
 import AuthNotice from "@/components/auth-notice";
 import IntroCard, { introDismissed } from "@/components/intro-card";
 import { HelpIcon, PlusIcon } from "@/components/icons";
@@ -135,6 +136,7 @@ export default function HomeClient() {
             <button type="button" className={styles.toolBtn} onClick={() => setShowIntro(true)} aria-label="Как это работает">
               <HelpIcon />
             </button>
+            <ThemeToggle />
             <AccountControl compact />
             <button
               type="button"

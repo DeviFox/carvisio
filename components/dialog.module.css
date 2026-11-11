@@ -262,7 +262,7 @@
 .dangerBtn {
   padding: 8px 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--card);
   background: var(--danger-ink);
   border-radius: var(--r-sm);
   transition: background-color 120ms ease;

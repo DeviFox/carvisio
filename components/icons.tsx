@@ -161,6 +161,35 @@ export function EyeOffIcon(p: Props) {
   );
 }
 
+export function SunIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="3.75" />
+      <path d="M12 3v1.8M12 19.2V21M3 12h1.8M19.2 12H21M5.6 5.6l1.3 1.3M17.1 17.1l1.3 1.3M5.6 18.4l1.3-1.3M17.1 6.9l1.3-1.3" />
+    </svg>
+  );
+}
+
+export function MoonIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5 7.8 7.8 0 1 0 19.5 14.6Z" />
+    </svg>
+  );
+}
+
+// "Как в системе": a screen whose left half is lit and right half is not.
+export function ThemeAutoIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <rect x="3" y="4.5" width="18" height="12.5" rx="2" />
+      <path d="M12 4.5V17" />
+      <path d="M12 4.5h7a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2h-7Z" fill="currentColor" stroke="none" />
+      <path d="M8.5 20.5h7" />
+    </svg>
+  );
+}
+
 export function CheckIcon(p: Props) {
   return (
     <svg {...base} {...p}>

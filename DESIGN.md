@@ -237,6 +237,16 @@ A near-white paper surface with a slate ink ramp, a single confident blue accent
 - **Danger Red**: "Критично" / "Просрочено", invalid field border, inline error text.
 - **Ok / Warn / Danger Ink** (deep tints): text sitting on a 12–18% wash of their state color (status pills). The bright state colors never carry text.
 
+### Dark Theme
+Same slate world at night, for the owner checking the car in a dark garage or in the evening. It is not a showroom treatment: no glass, no glow, no gradients. Keyed off `<html data-theme="dark">`, which an inline boot script resolves before first paint from the owner's choice (`carvisio.theme` in localStorage) or, by default, the OS. A tool button in the top row steps Как в системе → Светлая → Тёмная.
+
+- **Surfaces** step lighter as they rise: Paper `#0b1120`, Card `#111a2b`, Card Raised `#172236`. Overlay `rgba(2,6,18,0.62)`.
+- **Ink ramp:** Ink `#e7ecf3`, Body `#aab6c7`, Muted `#8794a9` (≥5.6:1 on raised), Faint `#5d6b80`, Ghost `#334157`. Lines `#222d42` / `#33415a`, dash `#4b5a72`.
+- **Accent turns light, its ink turns dark:** Signal Blue `#6ea8fe` (≥6.5:1 on every dark surface, so it still works as link text), hover `#9cc3ff`, Mist `#16294a`, accent-ink `#0b1120`. Anything drawn in `card` on an `ink` or `danger-ink` fill (the brand mark, the delete button) inverts with it.
+- **State colors** keep their hues; their inks become pale tints (`#6ee7b7`, `#fcd34d`, `#fca5a5`) over the same 12–18% washes, ≥7.8:1.
+- **Shadows** switch to black at higher alpha; the hairline still does the separating.
+- **The car stays a white car.** The pictures are cut out with an alpha ground shadow in slate ink (no blend mode), and the drawn cars keep their light paint (`.iso[data-theme="light"]` names the paint, not the page theme).
+
 ### Named Rules
 **The One Blue Rule.** A given viewport holds one meaningful blue element at a time — the primary CTA, or the active nav row, or a focused input, or the hovered empty slot. Blue is the pointer to the next action; multiplying it dilutes the signal.
 
