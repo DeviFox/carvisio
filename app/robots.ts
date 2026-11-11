@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/car/", "/reset-password/"],
+      disallow: ["/car/"],
     },
     sitemap: "https://carvisio.pro/sitemap.xml",
   };

@@ -1,38 +1,83 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OG_BASE, SITE_NAME, SITE_URL } from "@/lib/seo";
 import styles from "./page.module.css";
 
+const PATH = "/zhurnal-obsluzhivaniya-avtomobilya/";
 const title = "Журнал обслуживания автомобиля онлайн";
 const description =
-  "Записывайте обслуживание и ремонты, храните историю пробега и следите за ресурсом деталей автомобиля в Carvisio.";
+  "Фиксируйте пробег, замены и ремонты. Carvisio хранит историю обслуживания каждого автомобиля и помогает следить за ресурсом деталей.";
 
 export const metadata: Metadata = {
   title,
   description,
-  alternates: { canonical: "/zhurnal-obsluzhivaniya-avtomobilya/" },
-  openGraph: { title: `${title} — Carvisio`, description, url: "/zhurnal-obsluzhivaniya-avtomobilya/" },
+  alternates: { canonical: PATH },
+  openGraph: { ...OG_BASE, title: `${title} — ${SITE_NAME}`, description, url: PATH },
 };
 
 const features = [
   {
-    title: "История обслуживания",
-    text: "Записывайте замену деталей, ремонт и осмотр с датой, пробегом, стоимостью и заметками. Прошлые записи остаются в истории автомобиля.",
+    title: "Работы и расходы",
+    text: "Добавьте обслуживание, ремонт или осмотр. Для каждой записи можно указать дату, пробег, стоимость и комментарий.",
   },
   {
-    title: "Ресурс деталей",
-    text: "Укажите пробег или срок службы установленной детали. Carvisio покажет, сколько ресурса осталось по вашим данным.",
+    title: "Детали и их ресурс",
+    text: "Сохраните установленную деталь и её срок службы. Carvisio покажет расчётный остаток по пробегу или времени.",
   },
   {
-    title: "Состояние автомобиля",
-    text: "Отмечайте системы и детали, которым нужно внимание. Если данных не хватает, журнал так и покажет — без выдуманной оценки состояния.",
+    title: "Состояние компонентов",
+    text: "Отмечайте детали, которым нужно внимание. Если данных о ресурсе нет, Carvisio так и покажет.",
+  },
+];
+
+// Shared by the visible FAQ and its FAQPage markup so the two never drift apart.
+const faq = [
+  {
+    q: "Carvisio определяет техническое состояние автомобиля?",
+    a: "Нет. Приложение не получает данные с автомобиля и не заменяет диагностику. Статус деталей и расчёт ресурса основаны на информации, которую вы внесли.",
+  },
+  {
+    q: "Можно вести несколько автомобилей?",
+    a: "Да. Для каждого автомобиля хранится отдельная история работ и список установленных деталей.",
+  },
+  {
+    q: "Нужна регистрация?",
+    a: "Нет, начать можно без аккаунта. Позже гараж можно перенести в аккаунт и открывать на других устройствах.",
+  },
+];
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: SITE_NAME,
+    url: `${SITE_URL}/`,
+    description,
+    applicationCategory: "LifestyleApplication",
+    operatingSystem: "Any",
+    inLanguage: "ru",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "RUB" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
   },
 ];
 
 export default function JournalPage() {
   return (
     <main className={styles.page}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="Carvisio — в гараж">
+        <Link href="/" className={styles.brand} aria-label="carvisio — в гараж">
           <span className={styles.mark} aria-hidden="true">c</span>
           <span>carvisio</span>
         </Link>
@@ -41,23 +86,21 @@ export default function JournalPage() {
 
       <article>
         <section className={styles.hero}>
-          <p className={styles.eyebrow}>Личный журнал автомобиля</p>
+          <p className={styles.eyebrow}>История обслуживания в одном месте</p>
           <h1>Журнал обслуживания автомобиля онлайн</h1>
           <p className={styles.lead}>
-            Carvisio помогает вести историю обслуживания автомобиля в одном месте: фиксировать
-            пробег, замены, ремонты и осмотры, а затем возвращаться к этим записям, когда нужно
-            понять, что и когда делали.
+            Фиксируйте замену масла, ремонт или осмотр: дата, пробег, стоимость и комментарий
+            останутся в истории автомобиля.
           </p>
-          <Link href="/" className={styles.cta}>Начать вести журнал</Link>
-          <p className={styles.note}>Начать можно без регистрации. Записи сохраняются в гараже.</p>
+          <Link href="/" className={styles.cta}>Добавить автомобиль</Link>
+          <p className={styles.note}>Можно начать без регистрации. Гостевой гараж хранится на устройстве.</p>
         </section>
 
         <section className={styles.section} aria-labelledby="features-title">
-          <h2 id="features-title">История работ, пробег и состояние автомобиля</h2>
+          <h2 id="features-title">История каждой машины — в одном журнале</h2>
           <p>
-            Бумажная сервисная книжка часто теряется, а записи в заметках трудно связать с конкретной
-            деталью. В Carvisio у каждой машины своя история: что меняли, при каком пробеге и какие
-            компоненты установлены сейчас.
+            Соберите записи о ремонте, заменах и осмотрах по каждой машине. Так проще посмотреть,
+            что уже делали и при каком пробеге.
           </p>
           <div className={styles.cards}>
             {features.map((feature) => (
@@ -70,30 +113,25 @@ export default function JournalPage() {
         </section>
 
         <section className={styles.section} aria-labelledby="how-title">
-          <h2 id="how-title">Как вести журнал обслуживания</h2>
+          <h2 id="how-title">Как начать</h2>
           <ol className={styles.steps}>
             <li><strong>Добавьте автомобиль</strong><span>Укажите марку, модель и текущий пробег.</span></li>
-            <li><strong>Запишите работы</strong><span>Добавляйте замены, ремонты и осмотры по мере их выполнения.</span></li>
-            <li><strong>Следите за деталями</strong><span>Задайте ресурс компонента по пробегу или сроку и обновляйте историю после обслуживания.</span></li>
+            <li><strong>Запишите работы</strong><span>Добавьте недавние и известные прошлые работы. Можно начать с последней записи.</span></li>
+            <li><strong>Добавьте детали</strong><span>Укажите установленные компоненты и срок службы, если он известен.</span></li>
           </ol>
         </section>
 
         <section className={styles.section} aria-labelledby="faq-title">
-          <h2 id="faq-title">Частые вопросы</h2>
+          <h2 id="faq-title">Вопросы и ответы</h2>
           <div className={styles.faq}>
-            <h3>Это журнал обслуживания или диагностика автомобиля?</h3>
-            <p>Это журнал ваших записей и ориентир по заданному ресурсу деталей. Carvisio не подключается к автомобилю и не заменяет техническую диагностику.</p>
-            <h3>Можно ли вести несколько автомобилей?</h3>
-            <p>Да. Для каждой машины сохраняется собственная история работ и установленных компонентов.</p>
-            <h3>Нужно ли регистрироваться?</h3>
-            <p>Нет, начать можно сразу. Гостевой гараж хранится на устройстве; после регистрации его можно перенести в аккаунт и синхронизировать.</p>
+            {faq.map(({ q, a }) => [<h3 key={`${q}-q`}>{q}</h3>, <p key={`${q}-a`}>{a}</p>])}
           </div>
         </section>
       </article>
 
       <footer className={styles.footer}>
-        <span>carvisio — журнал обслуживания автомобиля</span>
-        <Link href="/">Перейти в гараж</Link>
+        <span>carvisio · история работ и деталей вашей машины</span>
+        <Link href="/">Вернуться в гараж</Link>
       </footer>
     </main>
   );

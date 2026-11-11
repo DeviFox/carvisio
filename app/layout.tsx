@@ -4,26 +4,21 @@ import { GeistMono } from "geist/font/mono";
 import { YandexMetrika } from "@/components/yandex-metrika";
 import { GoogleTag } from "@/components/google-tag";
 import GarageSync from "@/components/garage-sync";
+import { OG_BASE, SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
-const TITLE = "Carvisio — журнал обслуживания автомобиля и история ремонтов";
+const TITLE = "carvisio — история обслуживания автомобиля";
 const DESCRIPTION =
-  "Онлайн-журнал обслуживания автомобиля: записывайте замены, ремонты, пробег и расходы, следите за ресурсом деталей и состоянием систем автомобиля.";
+  "Записывайте пробег, ремонты и замены, чтобы потом быстро вспомнить, что уже делали с машиной.";
 
+// No canonical or og:url here: every route would inherit them and point at "/".
+// Pages that are meant to be indexed set their own.
 export const metadata: Metadata = {
-  metadataBase: new URL("https://carvisio.pro"),
-  title: TITLE,
+  metadataBase: new URL(SITE_URL),
+  title: { default: TITLE, template: `%s — ${SITE_NAME}` },
   description: DESCRIPTION,
-  alternates: { canonical: "/" },
   robots: { index: true, follow: true },
-  openGraph: {
-    type: "website",
-    locale: "ru_RU",
-    siteName: "carvisio",
-    title: TITLE,
-    description: DESCRIPTION,
-    url: "https://carvisio.pro/",
-  },
+  openGraph: { ...OG_BASE, title: TITLE, description: DESCRIPTION },
 };
 
 export default function RootLayout({
