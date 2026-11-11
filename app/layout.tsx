@@ -9,7 +9,7 @@ import "./globals.css";
 
 const TITLE = "carvisio — история обслуживания автомобиля";
 const DESCRIPTION =
-  "Записывайте пробег, ремонты и замены, чтобы потом быстро вспомнить, что уже делали с машиной.";
+  "Записывайте пробег, ремонт и замену деталей, чтобы история обслуживания автомобиля всегда была под рукой.";
 
 // No canonical or og:url here: every route would inherit them and point at "/".
 // Pages that are meant to be indexed set their own.
