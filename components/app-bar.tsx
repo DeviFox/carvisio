@@ -61,6 +61,7 @@ export function VersionTag() {
         Если наблюдаете проблемы в работе, попробуйте выключить VPN. Это временно, мы
         уже исправляем.
       </p>
+      <Link href="/zhurnal-obsluzhivaniya-avtomobilya/">Журнал обслуживания автомобиля</Link>
       <span className={styles.versionNumber}>v1.0.0 beta</span>
     </footer>
   );

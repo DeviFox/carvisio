@@ -21,7 +21,7 @@ import { BODY_TYPE_LABEL, BodyType, Vehicle } from "@/lib/types";
 // via the legacy slab-based builder and are frozen in the picker until they
 // get the same treatment.
 const READY_BODY_TYPES: ReadonlySet<BodyType> = new Set([
-  "sedan", "hatchback", "wagon", "coupe",
+  "sedan", "hatchback", "wagon", "coupe", "crossover",
 ]);
 
 

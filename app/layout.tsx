@@ -6,19 +6,23 @@ import { GoogleTag } from "@/components/google-tag";
 import GarageSync from "@/components/garage-sync";
 import "./globals.css";
 
-const TITLE = "carvisio — учёт обслуживания автомобиля, запчастей и расходников";
+const TITLE = "Carvisio — журнал обслуживания автомобиля и история ремонтов";
 const DESCRIPTION =
-  "Ведите историю обслуживания автомобиля, учитывайте пробег, контролируйте ресурс деталей и получайте напоминания о замене расходников.";
+  "Онлайн-журнал обслуживания автомобиля: записывайте замены, ремонты, пробег и расходы, следите за ресурсом деталей и состоянием систем автомобиля.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://carvisio.pro"),
   title: TITLE,
   description: DESCRIPTION,
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "ru_RU",
     siteName: "carvisio",
     title: TITLE,
     description: DESCRIPTION,
+    url: "https://carvisio.pro/",
   },
 };
 
