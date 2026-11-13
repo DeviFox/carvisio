@@ -1,0 +1,264 @@
+/* ─── Maintenance history document ───
+   A sheet of paper, not a screen of the app: its own fixed light palette, so
+   it stays white in the dark theme and survives a grayscale printer. State
+   colour lives only in the 6px dot; the word beside it carries the meaning. */
+
+/* ─── The sheet ─── */
+.sheet {
+  --paper: #ffffff;
+  --p-ink: #0f172a;
+  --p-body: #334155;
+  --p-muted: #64748b;
+  --p-line: #e2e8f0;
+  --p-line-strong: #cbd5e1;
+  --p-accent: #2563eb;
+
+  container-type: inline-size;
+  width: 100%;
+  max-width: 210mm;
+  margin: 0 auto;
+  background: var(--paper);
+  color: var(--p-body);
+  color-scheme: light;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  padding: clamp(24px, 5vw, 56px) clamp(16px, 4.5vw, 48px) clamp(20px, 4vw, 40px);
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+}
+/* Preview inside the report card: the card is the page, so no second frame,
+   and the palette follows the app theme instead of staying white. */
+.inline {
+  --paper: transparent;
+  --p-ink: var(--ink);
+  --p-body: var(--body);
+  --p-muted: var(--muted);
+  --p-line: var(--line);
+  --p-line-strong: var(--line-strong);
+  --p-accent: var(--accent);
+  max-width: none;
+  color-scheme: inherit;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.sheet ::selection { background: color-mix(in srgb, var(--p-accent) 22%, transparent); color: var(--p-ink); }
+
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--p-line);
+}
+.brand {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--p-accent);
+}
+.docKind { font-size: 12px; color: var(--p-muted); }
+
+.vehicle { margin-top: 28px; }
+.carName {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  color: var(--p-ink);
+  text-wrap: balance;
+}
+.carMeta { margin-top: 6px; font-size: 13px; color: var(--p-muted); }
+
+/* Three facts in one quiet row: the document's answer to "what is this". */
+.summary {
+  margin: 20px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--p-line);
+  border-bottom: 1px solid var(--p-line);
+}
+.fact { min-width: 0; }
+.fact dt { font-size: 11.5px; color: var(--p-muted); }
+.fact dd {
+  margin: 3px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--p-ink);
+  letter-spacing: -0.01em;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.total { white-space: nowrap; }
+.factNote { font-size: 11.5px; font-weight: 400; color: var(--p-muted); letter-spacing: 0; }
+.quiet { font-weight: 400; color: var(--p-muted); }
+
+.section { margin-top: 40px; }
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--p-ink);
+  letter-spacing: -0.012em;
+  break-after: avoid;
+}
+.sectionNote { margin-top: 4px; font-size: 11.5px; color: var(--p-muted); max-width: 68ch; }
+.empty { margin-top: 12px; color: var(--p-muted); }
+
+/* ─── Tables ─── */
+.status,
+.log {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.status thead th {
+  padding: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--p-muted);
+  border-top: 0;
+  border-bottom: 1px solid var(--p-line-strong);
+}
+.status thead + tbody .systemName { padding-top: 10px; }
+.status th,
+.status td,
+.log th,
+.log td {
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+/* Component state, grouped by system. */
+.systemName {
+  padding: 12px 0 4px;
+  font-size: 11.5px;
+  font-weight: 500 !important;
+  color: var(--p-muted);
+}
+.status tbody { break-inside: avoid; }
+.componentName,
+.statusCell,
+.detail {
+  padding: 6px 0;
+  border-top: 1px solid var(--p-line);
+}
+.componentName { width: 42%; padding-right: 12px; color: var(--p-ink); overflow-wrap: anywhere; }
+.statusCell { width: 24%; padding-right: 12px; color: var(--p-ink); white-space: nowrap; }
+.detail { color: var(--p-muted); }
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 1px 0;
+  border-radius: 50%;
+  vertical-align: middle;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.dot-ok { background: #10b981; }
+.dot-attention { background: #f59e0b; }
+.dot-critical { background: #ef4444; }
+.dot-unknown { box-shadow: inset 0 0 0 1.25px #94a3b8; }
+
+/* Maintenance log. */
+.log thead th {
+  padding: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--p-muted);
+  border-bottom: 1px solid var(--p-line-strong);
+}
+.log tbody td {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--p-line);
+}
+.log tbody tr { break-inside: avoid; }
+.dateCol { width: 88px; padding-right: 16px !important; color: var(--p-ink); white-space: nowrap; }
+.kmCol { width: 92px; padding-right: 12px !important; white-space: nowrap; }
+.costCol { width: 96px; text-align: right !important; color: var(--p-ink); white-space: nowrap; }
+.workCol { padding-right: 16px !important; min-width: 0; }
+.noCost .workCol { padding-right: 0 !important; }
+.workTitle { display: block; color: var(--p-ink); font-weight: 500; overflow-wrap: anywhere; }
+.notes {
+  display: block;
+  margin-top: 2px;
+  color: var(--p-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ─── Colophon ─── */
+.colophon {
+  margin-top: 48px;
+  padding-top: 14px;
+  border-top: 1px solid var(--p-line-strong);
+  font-size: 11.5px;
+  color: var(--p-muted);
+  break-inside: avoid;
+}
+.issued { display: flex; align-items: baseline; gap: 12px; color: var(--p-ink); font-size: 12px; }
+.issued .brand { font-size: 13px; }
+.disclaimer { margin-top: 6px; max-width: 72ch; line-height: 1.5; }
+
+/* ─── Narrow column or phone: rows stack ─── */
+@container (max-width: 560px) {
+  .summary { grid-template-columns: 1fr 1fr; }
+
+  .log thead,
+  .status thead { display: none; }
+  .log tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "date km cost"
+      "work work work";
+    column-gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--p-line);
+  }
+  .log tbody td { display: block; padding: 0 !important; border: 0; width: auto; }
+  .log .dateCol { grid-area: date; }
+  .log .kmCol { grid-area: km; color: var(--p-muted); }
+  .log .costCol { grid-area: cost; }
+  .log .workCol { grid-area: work; margin-top: 4px; }
+
+  .status tbody tr:not(:first-child) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "name state" "detail detail";
+    column-gap: 12px;
+    padding: 6px 0;
+    border-top: 1px solid var(--p-line);
+  }
+  .status tbody tr:not(:first-child) > * { display: block; width: auto; padding: 0; border: 0; }
+  .componentName { grid-area: name; }
+  .statusCell { grid-area: state; }
+  .detail { grid-area: detail; font-size: 12px; }
+  .detail:has(.none) { display: none !important; }
+}
+
+/* ─── Print ─── */
+@media print {
+  .sheet {
+    container-type: normal;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    font-size: 10pt;
+  }
+  .vehicle { margin-top: 20px; }
+  .log thead { display: table-header-group; }
+  .colophon { margin-top: 40px; }
+}

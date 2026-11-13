@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useSearchParams, useRouter} from "next/navigation";
 import styles from "./page.module.css";
 import shellStyles from "@/app/page.module.css";
@@ -15,10 +15,12 @@ import SystemList, {type ComponentRow, type SystemGroup} from "@/components/syst
 import UpdateMileageDialog from "@/components/update-mileage-dialog";
 import AddEventDialog from "@/components/add-event-dialog";
 import AddCarDialog from "@/components/add-car-dialog";
+import ReportPanel from "@/components/report-panel";
 import {
 	ArrowLeftIcon,
 	PlusIcon,
 	PencilIcon,
+	ExportIcon,
 } from "@/components/icons";
 import {useGarage} from "@/lib/store";
 import {useHydrated} from "@/lib/use-hydrated";
@@ -31,6 +33,8 @@ import {
 	rollupStatus,
 	sortComponentsByName,
 	sortEventsByDateDesc,
+	bodyTypeLabel,
+	fuelLabel,
 	type StatusLabel,
 } from "@/lib/compute";
 import type {MaintenanceEvent, MaintenanceType, SystemCategory} from "@/lib/types";
@@ -56,6 +60,11 @@ export default function CarPageClient() {
 	const [openComponentId, setOpenComponentId] = useState<string | null>(null);
 	const [editEventId, setEditEventId]         = useState<string | null>(null);
 	const [editOpen, setEditOpen]       = useState(false);
+	// The report takes the ledger's place. Local state answers at once (a
+	// zone click closes it and scrolls in the same frame); the address mirrors
+	// it, so the browser's Back closes the report and a reload keeps it.
+	const [reportOpen, setReportOpen]   = useState(() => searchParams.get("view") === "report");
+	const reportPushed                  = useRef(false);
 	const [helpOpen, setHelpOpen]       = useState(false);
 	// Set while a delete navigates away, so the page doesn't flash "не найден".
 	const [leaving, setLeaving]         = useState(false);
@@ -75,6 +84,15 @@ export default function CarPageClient() {
 	const setLastViewed  = useGarage((s) => s.setLastViewedVehicle);
 	const deleteVehicle  = useGarage((s) => s.deleteVehicle);
 	const vehicleId      = vehicle?.id;
+
+	useEffect(() => {
+		const onPop = () => {
+			reportPushed.current = false;
+			setReportOpen(new URLSearchParams(window.location.search).get("view") === "report");
+		};
+		window.addEventListener("popstate", onPop);
+		return () => window.removeEventListener("popstate", onPop);
+	}, []);
 
 	useEffect(() => {
 		if (vehicleId) setLastViewed(vehicleId);
@@ -209,7 +227,38 @@ export default function CarPageClient() {
 
 	function focusSystem(category: string) {
 		const sys = vehicleSystems.find((s) => s.category === category);
-		if (sys) reveal(sys.id);
+		if (!sys) return;
+		if (reportOpen) closeReport();
+		reveal(sys.id);
+	}
+
+	function reportUrl(open: boolean) {
+		const url = new URL(window.location.href);
+		if (open) url.searchParams.set("view", "report");
+		else url.searchParams.delete("view");
+		return url;
+	}
+
+	function openReport() {
+		setReportOpen(true);
+		window.history.pushState(window.history.state, "", reportUrl(true));
+		reportPushed.current = true;
+		// Bring the top of the report into view if the page was scrolled past it.
+		requestAnimationFrame(() => {
+			const el = document.getElementById("car-ledger");
+			if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({block: "start"});
+		});
+	}
+
+	// Our own entry: step back over it. Opened by link: just drop the flag.
+	function closeReport() {
+		setReportOpen(false);
+		if (reportPushed.current) {
+			reportPushed.current = false;
+			window.history.back();
+		} else {
+			window.history.replaceState(window.history.state, "", reportUrl(false));
+		}
 	}
 
 	return (
@@ -244,6 +293,16 @@ export default function CarPageClient() {
 								>
 									<PencilIcon/>
 								</button>
+								<button
+									type="button"
+									className={styles.editBtn}
+									onClick={() => (reportOpen ? closeReport() : openReport())}
+									aria-label="Отчёт для PDF"
+									aria-pressed={reportOpen}
+									title="Отчёт для PDF"
+								>
+									<ExportIcon/>
+								</button>
 							</div>
 							<p className={styles.carMeta}>
 								{[
@@ -266,7 +325,7 @@ export default function CarPageClient() {
 						</button>
 					</header>
 
-					<div className={styles.layout}>
+					<div className={`${styles.layout} ${reportOpen ? styles.reporting : ""}`}>
 						<aside className={styles.stage} aria-label="Состояние автомобиля">
 							<div className={styles.carCol}>
 								<div className={styles.illustration}>
@@ -338,7 +397,11 @@ export default function CarPageClient() {
 							</div>
 						</aside>
 
-						<div className={styles.ledger}>
+						<div className={styles.ledger} id="car-ledger">
+							{reportOpen ? (
+								<ReportPanel vehicle={vehicle} onClose={closeReport}/>
+							) : (
+							<>
 							<section className={styles.systems} aria-label="Системы автомобиля">
 								{groups.length === 0 ? (
 									<div className={styles.emptyNote}>У автомобиля нет систем.</div>
@@ -360,6 +423,8 @@ export default function CarPageClient() {
 								components={components}
 								onOpen={(e) => setEditEventId(e.id)}
 							/>
+							</>
+							)}
 						</div>
 					</div>
 				</main>
@@ -450,39 +515,3 @@ function readOpen(vehicleId: string): Set<string> {
 function ratioOf(row: ComponentRow): number {
 	return row.resource.kind === "known" ? row.resource.ratio : 1;
 }
-
-function bodyTypeLabel(bt?: string): string | null {
-	if (!bt) return null;
-	const map: Record<string, string> = {
-		sedan:     "седан",
-		hatchback: "хэтчбек",
-		wagon:     "универсал",
-		coupe:     "купе",
-		crossover: "кроссовер",
-		suv:       "внедорожник",
-		pickup:    "пикап",
-		minivan:   "минивэн",
-		van:       "фургон",
-		other:     "авто",
-	};
-	return map[bt] ?? bt;
-}
-
-function fuelLabel(fuel?: string): string | null {
-	if (!fuel) return null;
-	switch (fuel) {
-		case "gasoline":
-			return "бензин";
-		case "diesel":
-			return "дизель";
-		case "hybrid":
-			return "гибрид";
-		case "electric":
-			return "электро";
-		case "lpg":
-			return "газ";
-		default:
-			return fuel;
-	}
-}
-

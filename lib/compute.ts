@@ -374,3 +374,53 @@ export function assertNewerMileage(
   }
   return null;
 }
+
+// "12.10.2026" from a stored date. Event dates are calendar days
+// ("2026-10-12"); new Date() would read them as UTC midnight and show the
+// previous day west of Greenwich, so the day is taken from the string.
+export function formatDay(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("ru-RU");
+}
+
+// Recorded costs summed per currency, never across currencies. Events
+// without a cost are left out, not counted as zero.
+export function costTotals(events: MaintenanceEvent[]): { currency?: string; minorUnits: number }[] {
+  const totals = new Map<string | undefined, number>();
+  for (const e of events) {
+    if (e.costMinorUnits === undefined || !Number.isFinite(e.costMinorUnits)) continue;
+    totals.set(e.currency, (totals.get(e.currency) ?? 0) + e.costMinorUnits);
+  }
+  return [...totals].map(([currency, minorUnits]) => ({ currency, minorUnits }));
+}
+
+export function bodyTypeLabel(bt?: string): string | null {
+  if (!bt) return null;
+  const map: Record<string, string> = {
+    sedan: "седан",
+    hatchback: "хэтчбек",
+    wagon: "универсал",
+    coupe: "купе",
+    crossover: "кроссовер",
+    suv: "внедорожник",
+    pickup: "пикап",
+    minivan: "минивэн",
+    van: "фургон",
+    other: "авто",
+  };
+  return map[bt] ?? bt;
+}
+
+export function fuelLabel(fuel?: string): string | null {
+  if (!fuel) return null;
+  const map: Record<string, string> = {
+    gasoline: "бензин",
+    diesel: "дизель",
+    hybrid: "гибрид",
+    electric: "электро",
+    lpg: "газ",
+  };
+  return map[fuel] ?? fuel;
+}

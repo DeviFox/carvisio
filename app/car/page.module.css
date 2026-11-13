@@ -122,6 +122,13 @@
 
 .ledger { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
 
+/* Report mode: the car stays beside the sheet only where it sits beside the
+   ledger at all; on narrower screens it would push the document a screen down. */
+@media (max-width: 1279px) {
+  .reporting .stage { display: none; }
+}
+.editBtn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
 /* Wide screens: the car stays in view while the ledger scrolls, so hovering
    a system row lights its zone where the owner can see it. */
 @media (min-width: 1280px) {

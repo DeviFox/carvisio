@@ -197,3 +197,14 @@ export function CheckIcon(p: Props) {
     </svg>
   );
 }
+
+// A page with a fold and an arrow out of it: export the car's history.
+export function ExportIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
+      <path d="M13 3v6h6" />
+      <path d="M12 12.5v5M9.5 15l2.5 2.5 2.5-2.5" />
+    </svg>
+  );
+}

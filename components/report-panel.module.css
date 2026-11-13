@@ -1,0 +1,114 @@
+/* One card, level with the car's: controls on top, the document below. */
+.panel {
+  min-width: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.body { padding: 32px clamp(16px, 4vw, 40px) 36px; }
+@media (max-width: 720px) {
+  .controls { padding: 16px; }
+  .body { padding: 24px 16px 28px; }
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+.actions { display: flex; align-items: center; gap: 8px; }
+
+.closeBtn {
+  padding: 9px 14px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--body);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.closeBtn:hover { border-color: var(--line-strong); color: var(--ink); }
+
+.printBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-size: var(--fs-base);
+  padding: 10px 16px;
+  border-radius: var(--r-sm);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 18%, transparent);
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.printBtn:hover { background: var(--accent-hover); }
+.printBtn:active { transform: translateY(1px); }
+.printBtn svg { width: 16px; height: 16px; }
+
+.closeBtn:focus-visible,
+.printBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+/* Named for screen readers; the checkboxes say enough on screen. */
+.legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+
+.hint { font-size: var(--fs-xs); color: var(--muted); line-height: 1.45; max-width: 72ch; }
+
+/* ─── Print: only the copy at the top of <body> ─── */
+@media screen {
+  .printRoot { display: none; }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 16mm 14mm 16mm;
+}
+
+@media print {
+  :global(html):has(.printRoot),
+  :global(body):has(> .printRoot) { background: #fff !important; }
+  :global(body) > :not(.printRoot) { display: none !important; }
+}
