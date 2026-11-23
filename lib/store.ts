@@ -32,6 +32,7 @@ import {
   retiredBy,
 } from "./records";
 import { moveLegacyStorage } from "./legacy-storage";
+import { tr } from "./i18n";
 
 export type { AddRecordInput, AddRecordResult, EventPatch };
 
@@ -226,17 +227,17 @@ export const useGarage = create<GarageState>()(
 
       renameComponent: (id, raw) => {
         const name = raw.trim().replace(/\s+/g, " ");
-        if (!name) return "Укажите название.";
-        if (name.length > 80) return "Слишком длинное название.";
+        if (!name) return tr().records.err.name;
+        if (name.length > 80) return tr().records.err.nameTooLong;
         const st = get();
         const component = st.components.find((c) => c.id === id);
-        if (!component) return "Деталь не найдена.";
+        if (!component) return tr().records.err.partNotFound;
         if (name === component.name) return null;
         const siblings = st.components.filter(
           (c) => c.id !== id && c.vehicleId === component.vehicleId,
         );
         if (findComponentByName(siblings, name, component.systemId, component)) {
-          return "Такая деталь уже есть в этой системе.";
+          return tr().records.err.duplicatePart;
         }
         set((s) => ({
           components: s.components.map((c) => (c.id === id ? { ...c, name } : c)),
@@ -247,12 +248,12 @@ export const useGarage = create<GarageState>()(
       setComponentPosition: (id, position) => {
         const st = get();
         const component = st.components.find((c) => c.id === id);
-        if (!component) return "Деталь не найдена.";
+        if (!component) return tr().records.err.partNotFound;
         const siblings = st.components.filter(
           (c) => c.id !== id && c.vehicleId === component.vehicleId,
         );
         if (findComponentByName(siblings, component.name, component.systemId, position)) {
-          return "Такая деталь в этом месте уже есть.";
+          return tr().records.err.duplicatePosition;
         }
         set((s) => ({
           components: s.components.map((c) => {
@@ -353,20 +354,20 @@ export const useGarage = create<GarageState>()(
         const fail = (error: string): AddRecordResult => ({ ok: false, error });
         const st = get();
         const event = st.events.find((e) => e.id === id);
-        if (!event) return fail("Запись не найдена.");
+        if (!event) return fail(tr().records.err.recordNotFound);
         const vehicle = st.vehicles.find((v) => v.id === event.vehicleId);
-        if (!vehicle) return fail("Автомобиль не найден.");
-        if (!patch.date) return fail("Укажите дату.");
+        if (!vehicle) return fail(tr().records.err.vehicleNotFound);
+        if (!patch.date) return fail(tr().records.err.date);
         const mileage = patch.mileageKm;
         if (mileage !== undefined && (!Number.isFinite(mileage) || mileage < 0)) {
-          return fail("Введите пробег цифрами.");
+          return fail(tr().common.mileageDigits);
         }
-        if (event.type !== "observation" && mileage === undefined) return fail("Укажите пробег.");
+        if (event.type !== "observation" && mileage === undefined) return fail(tr().records.err.mileage);
         if (mileage !== undefined && vehicle.currentMileageKm !== undefined && mileage > vehicle.currentMileageKm) {
-          return fail(`Больше текущего пробега (${formatKm(vehicle.currentMileageKm)}).`);
+          return fail(tr().records.err.mileageAbove(formatKm(vehicle.currentMileageKm)));
         }
         const notes = patch.notes?.trim() || undefined;
-        if (event.type === "observation" && !notes) return fail("Напишите текст заметки.");
+        if (event.type === "observation" && !notes) return fail(tr().records.err.noteText);
 
         const part = event.installedPartId
           ? st.installedParts.find((p) => p.id === event.installedPartId)
@@ -378,7 +379,7 @@ export const useGarage = create<GarageState>()(
           mileage < previous.installedAtMileageKm
         ) {
           return fail(
-            `Пробег меньше, чем при прошлой замене (${formatKm(previous.installedAtMileageKm)}).`,
+            tr().records.err.mileageBelowPrevious(formatKm(previous.installedAtMileageKm)),
           );
         }
 
@@ -420,33 +421,33 @@ export const useGarage = create<GarageState>()(
         const fail = (error: string): AddRecordResult => ({ ok: false, error });
         const st = get();
         const vehicle = st.vehicles.find((v) => v.id === input.vehicleId);
-        if (!vehicle) return fail("Автомобиль не найден.");
-        if (!input.date) return fail("Укажите дату.");
+        if (!vehicle) return fail(tr().records.err.vehicleNotFound);
+        if (!input.date) return fail(tr().records.err.date);
         const mileage = input.mileageKm;
         if (mileage !== undefined && (!Number.isFinite(mileage) || mileage < 0)) {
-          return fail("Введите пробег цифрами.");
+          return fail(tr().common.mileageDigits);
         }
         if (input.type !== "observation" && mileage === undefined) {
-          return fail("Укажите пробег.");
+          return fail(tr().records.err.mileage);
         }
         const notes = input.notes?.trim() || undefined;
-        if (input.type === "observation" && !notes) return fail("Напишите текст заметки.");
+        if (input.type === "observation" && !notes) return fail(tr().records.err.noteText);
 
         let component: Component | undefined;
         let created: Component | undefined;
         if (input.newComponent) {
           if (input.type === "observation") {
-            return fail("Заметка не создаёт компонент.");
+            return fail(tr().records.err.noteNoComponent);
           }
           const name = input.newComponent.name.trim();
-          if (!name) return fail("Укажите название компонента.");
+          if (!name) return fail(tr().records.err.componentName);
           const system = st.systems.find(
             (x) =>
               x.id === input.newComponent!.systemId &&
               x.vehicleId === vehicle.id &&
               !x.isArchived,
           );
-          if (!system) return fail("Выберите систему автомобиля.");
+          if (!system) return fail(tr().records.err.vehicleSystem);
           const vehicleComponents = st.components.filter((c) => c.vehicleId === vehicle.id);
           // Position only for systems that have one, and never for fluids.
           const positioned = POSITIONED_CATEGORIES.includes(system.category) && !input.newComponent.fluid;
@@ -454,13 +455,13 @@ export const useGarage = create<GarageState>()(
             ? { axle: input.newComponent.axle, side: input.newComponent.side }
             : {};
           if (findComponentByName(vehicleComponents, name, system.id, position)) {
-            return fail("Такой компонент уже есть в этой системе.");
+            return fail(tr().records.err.duplicateComponent);
           }
           const fluid = input.newComponent.fluid;
           if (fluid !== undefined) {
-            if (!FLUIDS.some((f) => f.key === fluid)) return fail("Неизвестная жидкость.");
+            if (!FLUIDS.some((f) => f.key === fluid)) return fail(tr().records.err.unknownFluid);
             if (vehicleComponents.some((c) => c.fluid === fluid && !c.isArchived)) {
-              return fail("Эта жидкость уже есть у автомобиля.");
+              return fail(tr().records.err.fluidExists);
             }
           }
           created = {
@@ -480,9 +481,9 @@ export const useGarage = create<GarageState>()(
             (c) =>
               c.id === input.componentId && c.vehicleId === vehicle.id && !c.isArchived,
           );
-          if (!component) return fail("Компонент не найден.");
+          if (!component) return fail(tr().records.err.componentNotFound);
         }
-        if (input.type !== "observation" && !component) return fail("Выберите компонент.");
+        if (input.type !== "observation" && !component) return fail(tr().records.err.component);
 
         let newPart: InstalledPart | undefined;
         let prevPart: InstalledPart | undefined;
@@ -494,7 +495,7 @@ export const useGarage = create<GarageState>()(
             mileage < prevPart.installedAtMileageKm
           ) {
             return fail(
-              `Пробег меньше, чем при прошлой замене (${formatKm(prevPart.installedAtMileageKm)}). Проверьте значение.`,
+              tr().records.err.mileageBelowPreviousCheck(formatKm(prevPart.installedAtMileageKm)),
             );
           }
           newPart = {

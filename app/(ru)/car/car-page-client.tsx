@@ -23,6 +23,7 @@ import {
 	ExportIcon,
 } from "@/components/icons";
 import {useGarage} from "@/lib/store";
+import {useT} from "@/lib/i18n/react";
 import {useHydrated} from "@/lib/use-hydrated";
 import {
 	componentStatus,
@@ -45,6 +46,7 @@ export default function CarPageClient() {
 
 	const router                        = useRouter();
 	const hydrated                      = useHydrated();
+	const t                             = useT();
 	// Captured once per visit: "mileage is stale" needs no live clock.
 	const [now]                         = useState(() => Date.now());
 	const [mileageOpen, setMileageOpen] = useState(false);
@@ -122,9 +124,9 @@ export default function CarPageClient() {
 		return (
 			<div className={shellStyles.shell}>
 				<main className={shellStyles.main}>
-					<h1 className={shellStyles.h1}>Автомобиль не найден</h1>
+					<h1 className={shellStyles.h1}>{t.car.notFound}</h1>
 					<p className={shellStyles.sub}>
-						Возможно, запись удалена или адрес устарел.
+						{t.car.notFoundHint}
 					</p>
 					<div style={{marginTop: 24}}>
 						<button
@@ -133,7 +135,7 @@ export default function CarPageClient() {
 							onClick={() => router.push("/")}
 						>
 							<ArrowLeftIcon/>
-							В гараж
+							{t.garage.toGarage}
 						</button>
 					</div>
 				</main>
@@ -269,7 +271,7 @@ export default function CarPageClient() {
 						type="button"
 						className={styles.backBtn}
 						onClick={() => router.push("/")}
-						aria-label="В гараж"
+						aria-label={t.garage.toGarage}
 					>
 						<ArrowLeftIcon/>
 					</button>
@@ -288,8 +290,8 @@ export default function CarPageClient() {
 									type="button"
 									className={styles.editBtn}
 									onClick={() => setEditOpen(true)}
-									aria-label="Изменить данные автомобиля"
-									title="Изменить данные"
+									aria-label={t.car.editCar}
+									title={t.car.editCarShort}
 								>
 									<PencilIcon/>
 								</button>
@@ -297,9 +299,9 @@ export default function CarPageClient() {
 									type="button"
 									className={styles.editBtn}
 									onClick={() => (reportOpen ? closeReport() : openReport())}
-									aria-label="Отчёт для PDF"
+									aria-label={t.car.report}
 									aria-pressed={reportOpen}
-									title="Отчёт для PDF"
+									title={t.car.report}
 								>
 									<ExportIcon/>
 								</button>
@@ -314,6 +316,12 @@ export default function CarPageClient() {
 									.filter(Boolean)
 									.join(" · ") || "—"}
 							</p>
+							{vehicle.vin ? (
+								<p className={styles.carVin}>
+									<span className={styles.carVinLabel}>{t.car.vin}</span>
+									<span className="mono">{vehicle.vin}</span>
+								</p>
+							) : null}
 						</div>
 						<button
 							type="button"
@@ -321,12 +329,12 @@ export default function CarPageClient() {
 							onClick={() => setRecord({})}
 						>
 							<PlusIcon/>
-							Добавить запись
+							{t.car.addRecord}
 						</button>
 					</header>
 
 					<div className={`${styles.layout} ${reportOpen ? styles.reporting : ""}`}>
-						<aside className={styles.stage} aria-label="Состояние автомобиля">
+						<aside className={styles.stage} aria-label={t.car.carState}>
 							<div className={styles.carCol}>
 								<div className={styles.illustration}>
 									<CarIllustration
@@ -339,7 +347,7 @@ export default function CarPageClient() {
 								</div>
 								{flagged.length > 0 ? (
 									// Names the dots on the car, and carries "Прочее", which has no zone.
-									<ul className={styles.zoneChips} aria-label="Системы, требующие внимания">
+									<ul className={styles.zoneChips} aria-label={t.car.flaggedSystems}>
 										{flagged.map((g) => (
 											<li key={g.system.id}>
 												<button
@@ -362,21 +370,21 @@ export default function CarPageClient() {
 							<div className={styles.stageSide}>
 								<div className={styles.mileage}>
 									<div>
-										<div className={styles.mileageLabel}>Текущий пробег</div>
+										<div className={styles.mileageLabel}>{t.car.currentMileage}</div>
 										{vehicle.currentMileageKm !== undefined ? (
 											<div className={`${styles.mileageValue} numeric mono`}>
 												{digitGroups(vehicle.currentMileageKm)}
-												<span className={styles.mileageUnit}>{"км"}</span>
+												<span className={styles.mileageUnit}>{t.common.kmUnit}</span>
 											</div>
 										) : (
-											<div className={styles.mileageMissing}>Не указан</div>
+											<div className={styles.mileageMissing}>{t.car.mileageNotSet}</div>
 										)}
 										{vehicle.currentMileageKm === undefined ? (
-											<div className={styles.mileageAge}>Без него срок службы по пробегу не считается.</div>
+											<div className={styles.mileageAge}>{t.car.mileageNeeded}</div>
 										) : mileageAt ? (
 											// Every forecast is measured from this number, so say how fresh it is.
 											<div className={`${styles.mileageAge} ${mileageStale ? styles.mileageStale : ""}`}>
-												Обновлён {formatAgo(mileageAt)}
+												{t.car.mileageUpdated(formatAgo(mileageAt))}
 											</div>
 										) : null}
 									</div>
@@ -385,7 +393,7 @@ export default function CarPageClient() {
 										className={styles.ghostAction}
 										onClick={() => setMileageOpen(true)}
 									>
-										{vehicle.currentMileageKm === undefined ? "Указать пробег" : "Обновить пробег"}
+										{vehicle.currentMileageKm === undefined ? t.car.setMileage : t.car.updateMileage}
 									</button>
 								</div>
 								{hasComponents ? (
@@ -402,9 +410,9 @@ export default function CarPageClient() {
 								<ReportPanel vehicle={vehicle} onClose={closeReport}/>
 							) : (
 							<>
-							<section className={styles.systems} aria-label="Системы автомобиля">
+							<section className={styles.systems} aria-label={t.car.carSystems}>
 								{groups.length === 0 ? (
-									<div className={styles.emptyNote}>У автомобиля нет систем.</div>
+									<div className={styles.emptyNote}>{t.car.noSystems}</div>
 								) : (
 									<SystemList
 										groups={groups}

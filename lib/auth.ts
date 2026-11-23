@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { ApiError, api, type User } from "./api";
+import { tr } from "./i18n";
 
 // Who is signed in. "unknown" until the first /api/me answer arrives, so the
 // account control can stay quiet instead of flashing "Войти" for a signed-in
@@ -95,20 +96,20 @@ export const useAuth = create<AuthState>((set) => ({
   },
 }));
 
-// Russian copy for failures every auth form shares. Form-specific cases
+// Copy for failures every auth form shares. Form-specific cases
 // (wrong password, taken email, expired link) are worded by the form itself.
 export function commonAuthError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 0) return "Не удалось связаться с сервером. Проверьте подключение интернету и попробуйте ещё раз. \n Если включён VPN, попробуйте выключить его, это временно, мы уже исправляем.";
+    if (err.status === 0) return tr().auth.err.network;
     // The server's rate-limit window is 15 minutes, counted from the first attempt.
-    if (err.status === 429) return "Слишком много попыток. Подождите до 15 минут и попробуйте снова.";
+    if (err.status === 429) return tr().auth.err.rateLimit;
     // The forms check the obvious cases first; these are the ones only the server catches.
     if (err.status === 422 && err.message.includes("email")) {
-      return "Произошла ошибка. Проверьте, нет ли в адресе эл. почты опечатки или лишних символов.";
+      return tr().auth.err.emailRejected;
     }
-    if (err.status === 422 && err.message.includes("at most")) return `Пароль слишком длинный: не больше ${MAX_PASSWORD} символов.`;
+    if (err.status === 422 && err.message.includes("at most")) return tr().auth.err.passwordTooLongDot(MAX_PASSWORD);
   }
-  return "Что-то пошло не так на сервере. Попробуйте ещё раз чуть позже.";
+  return tr().auth.err.server;
 }
 
 export const MIN_PASSWORD = 8;
@@ -123,11 +124,13 @@ export function focusOnDesktop(el: HTMLElement | null) {
 // Same bounds as the server (server/internal/auth validatePassword), in runes.
 export function passwordLengthError(password: string): string | undefined {
   const n = [...password].length;
-  if (n < MIN_PASSWORD) return `Пароль должен быть не короче ${MIN_PASSWORD} символов`;
-  if (n > MAX_PASSWORD) return `Пароль слишком длинный: не больше ${MAX_PASSWORD} символов`;
+  if (n < MIN_PASSWORD) return tr().auth.err.passwordTooShort(MIN_PASSWORD);
+  if (n > MAX_PASSWORD) return tr().auth.err.passwordTooLong(MAX_PASSWORD);
 }
 
-export const EMAIL_FORMAT_ERROR = "Введите почту в формате you@example.com";
+export function emailFormatError(): string {
+  return tr().auth.err.emailFormat;
+}
 
 // The server has the final word; this only catches obvious typos before a round trip.
 export function looksLikeEmail(s: string): boolean {

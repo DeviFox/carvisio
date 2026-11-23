@@ -47,6 +47,18 @@
   margin-top: 6px;
 }
 
+/* The VIN is a reference, not a headline: one quiet line, copyable as is. */
+.carVin {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.carVinLabel { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.04em; }
+
 .headCta { flex-shrink: 0; }
 .ctaSpacer { display: none; }
 

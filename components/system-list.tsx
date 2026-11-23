@@ -13,6 +13,7 @@ import {
   type StatusLabel,
 } from "@/lib/compute";
 import type { Component, InstalledPart, SystemCategory, VehicleSystem } from "@/lib/types";
+import { tr } from "@/lib/i18n";
 
 export type ComponentRow = {
   component: Component;
@@ -28,24 +29,24 @@ export type SystemGroup = {
   label: StatusLabel;
 };
 
-export const SYSTEM_STATUS_TEXT: Record<StatusLabel, string> = {
-  ok: "В норме",
-  attention: "Требует внимания",
-  critical: "Критично",
-  unknown: "Нет данных",
-};
+// The generic word for a state, when its parts don't agree on a narrower one.
+export function systemStatusWord(label: StatusLabel): string {
+  const { status } = tr().common;
+  return label === "unknown" ? status.noData : status[label];
+}
 
 // The system's pill speaks the same word as the parts behind it: when every
 // part at the system's state says it the same way ("Просрочено"), so does
 // the system. Mixed causes fall back to the generic word.
 function systemStatusText(label: StatusLabel, rows: ComponentRow[]): string {
   const texts = new Set(rows.filter((r) => r.status.label === label).map((r) => r.status.text));
-  return texts.size === 1 ? [...texts][0] : SYSTEM_STATUS_TEXT[label];
+  return texts.size === 1 ? [...texts][0] : systemStatusWord(label);
 }
 
 // What a collapsed system says besides its count: problems first, then gaps.
 function countLine(rows: ComponentRow[]): string {
-  if (rows.length === 0) return "нет компонентов";
+  const t = tr().car;
+  if (rows.length === 0) return t.noComponents;
   const n = (label: StatusLabel) => rows.filter((r) => r.status.label === label).length;
   // Overdue by the forecast and critical by an inspection are different facts.
   const overdue = rows.filter((r) => r.status.label === "critical" && r.status.reason === "computed").length;
@@ -54,15 +55,14 @@ function countLine(rows: ComponentRow[]): string {
   const soon = rows.filter((r) => r.status.label === "attention" && r.status.reason === "computed").length;
   const attention = n("attention") - soon;
   const unknown = n("unknown");
-  // A no-break space keeps each count with its word when the line wraps.
-  const nb = "\u00a0";
+  // The messages keep each count with its word (no-break space) when the line wraps.
   return [
-    `${rows.length}${nb}${plural(rows.length, "компонент", "компонента", "компонентов")}`,
-    overdue ? `${overdue}${nb}просрочено` : null,
-    critical ? `${critical}${nb}критично` : null,
-    soon ? `${soon}${nb}скоро замена` : null,
-    attention ? `${attention}${nb}${plural(attention, "требует", "требуют", "требуют")} внимания` : null,
-    unknown && unknown < rows.length ? `${unknown}${nb}без данных` : null,
+    t.components(rows.length),
+    overdue ? t.countOverdue(overdue) : null,
+    critical ? t.countCritical(critical) : null,
+    soon ? t.countSoon(soon) : null,
+    attention ? t.countAttention(attention) : null,
+    unknown && unknown < rows.length ? t.countUnknown(unknown) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -143,7 +143,7 @@ export default function SystemList({
                   onClick={() => onAddComponent(system.id)}
                 >
                   <PlusIcon />
-                  <span>Добавить компонент</span>
+                  <span>{tr().car.addComponent}</span>
                 </button>
               </div>
             ) : null}
@@ -169,12 +169,12 @@ function ComponentLine({
   const summary =
     resourceSummary(resource) ??
     (resource.kind === "unknown" && resource.reason === "no_expected_life"
-      ? "срок службы не задан"
-      : "нет данных для расчёта");
+      ? tr().car.lifeNotSetLower
+      : tr().car.noDataToCompute);
   const over = resource.kind === "known" && resource.overdue;
   const installed =
     part?.installedAtMileageKm !== undefined
-      ? `установлено на ${formatKm(part.installedAtMileageKm)}`
+      ? tr().car.installedAt(formatKm(part.installedAtMileageKm))
       : null;
   return (
     <li id={`component-${component.id}`} className={s.compItem}>
@@ -212,14 +212,6 @@ function ComponentLine({
   );
 }
 
-export function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n) % 100;
-  const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return many;
-  if (n1 > 1 && n1 < 5) return few;
-  if (n1 === 1) return one;
-  return many;
-}
 
 function systemIcon(category: string) {
   const common = {

@@ -4,14 +4,9 @@ import { useSyncExternalStore } from "react";
 import styles from "@/app/page.module.css";
 import { getPref, setPref, subscribe, ThemePref } from "@/lib/theme";
 import { MoonIcon, SunIcon, ThemeAutoIcon } from "./icons";
+import { useT } from "@/lib/i18n/react";
 
 const NEXT: Record<ThemePref, ThemePref> = { system: "light", light: "dark", dark: "system" };
-
-const COPY: Record<ThemePref, { now: string; next: string }> = {
-  system: { now: "как в системе", next: "включить светлую" },
-  light: { now: "светлая", next: "включить тёмную" },
-  dark: { now: "тёмная", next: "вернуть как в системе" },
-};
 
 const ICON: Record<ThemePref, () => React.ReactElement> = {
   system: () => <ThemeAutoIcon />,
@@ -24,8 +19,8 @@ const ICON: Record<ThemePref, () => React.ReactElement> = {
 export default function ThemeToggle() {
   // The server has no stored choice; "system" there, the real one after hydration.
   const pref = useSyncExternalStore(subscribe, getPref, () => "system" as const);
-  const copy = COPY[pref];
-  const label = `Тема: ${copy.now}. Нажмите, чтобы ${copy.next}`;
+  const { theme } = useT().garage;
+  const label = theme.label(theme.now[pref], theme.next[pref]);
   return (
     <button
       type="button"

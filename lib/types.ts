@@ -21,8 +21,8 @@ export type ComponentKind = "consumable" | "replaceable" | "inspectable";
 export type Axle = "front" | "rear";
 export type Side = "left" | "right";
 
-export const AXLE_LABEL: Record<Axle, string> = { front: "Перед", rear: "Зад" };
-export const SIDE_LABEL: Record<Side, string> = { left: "Левый", right: "Правый" };
+export const AXLES: Axle[] = ["front", "rear"];
+export const SIDES: Side[] = ["left", "right"];
 
 // Systems whose parts come in pairs or per wheel; only these offer a position.
 export const POSITIONED_CATEGORIES: SystemCategory[] = ["suspension", "brakes", "tires"];
@@ -54,18 +54,16 @@ export type BodyType =
   | "van"
   | "other";
 
-export const BODY_TYPE_LABEL: Record<BodyType, string> = {
-  sedan: "Седан",
-  hatchback: "Хэтчбек",
-  wagon: "Универсал",
-  coupe: "Купе",
-  crossover: "Кроссовер",
-  suv: "Внедорожник",
-  pickup: "Пикап",
-  minivan: "Минивэн",
-  van: "Фургон",
-  other: "Другое",
-};
+// Picker order; labels live in the i18n dictionary (common.bodyType).
+export const BODY_TYPES: BodyType[] = [
+  "sedan", "hatchback", "wagon", "coupe", "crossover", "suv", "pickup", "minivan", "van", "other",
+];
+
+// The systems every new car starts with, in display order. Their names come
+// from the interface language at the moment the car is added.
+export const SEED_SYSTEMS: SystemCategory[] = [
+  "engine", "cooling", "transmission", "suspension", "brakes", "tires", "electrical", "other",
+];
 
 export interface Vehicle {
   id: ID;
@@ -76,6 +74,9 @@ export interface Vehicle {
   fuelType?: string;
   engine?: string;
   bodyType?: BodyType;
+  // VIN, or the body (frame) number on cars without one. Upper-case, no
+  // spaces; optional, kept for later use (lookups, reports).
+  vin?: string;
   // Unknown until the owner enters it; resource by mileage waits for it.
   currentMileageKm?: number;
   units: Units;
@@ -186,17 +187,17 @@ export const emptyGarage = (): GarageData => ({
   lastViewedVehicleId: null,
 });
 
+// Display names live in the i18n dictionary (common.fluidName[key]).
 export interface FluidSpec {
   key: string;
-  name: string;
   category: SystemCategory;
 }
 
 export const FLUIDS: FluidSpec[] = [
-  { key: "engine_oil", name: "Моторное масло", category: "engine" },
-  { key: "coolant", name: "Охлаждающая жидкость", category: "cooling" },
-  { key: "brake_fluid", name: "Тормозная жидкость", category: "brakes" },
-  { key: "transmission_oil", name: "Трансмиссионное масло", category: "transmission" },
-  { key: "power_steering", name: "Жидкость ГУР", category: "other" },
-  { key: "washer", name: "Омывающая жидкость", category: "body" },
+  { key: "engine_oil", category: "engine" },
+  { key: "coolant", category: "cooling" },
+  { key: "brake_fluid", category: "brakes" },
+  { key: "transmission_oil", category: "transmission" },
+  { key: "power_steering", category: "other" },
+  { key: "washer", category: "body" },
 ];

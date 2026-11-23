@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./dialog.module.css";
 import { useGarage } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 type Props = {
   vehicle: Vehicle;
@@ -13,6 +14,7 @@ type Props = {
 // Two-step delete inside the car settings dialog: a quiet link, then an
 // inline confirmation that says exactly what goes away.
 export default function DeleteCar({ vehicle, onDelete }: Props) {
+  const t = useT();
   const [confirming, setConfirming] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
@@ -32,43 +34,34 @@ export default function DeleteCar({ vehicle, onDelete }: Props) {
   if (!confirming) {
     return (
       <button type="button" className={styles.deleteLink} onClick={() => setConfirming(true)}>
-        Удалить автомобиль
+        {t.car.deleteCar}
       </button>
     );
   }
 
   const losses = [
-    events > 0 ? `${events} ${plural(events, "запись", "записи", "записей")} обслуживания` : null,
-    components > 0 ? `${components} ${plural(components, "компонент", "компонента", "компонентов")}` : null,
-    mileage > 0 ? `${mileage} ${plural(mileage, "отметка", "отметки", "отметок")} пробега` : null,
+    events > 0 ? t.car.lossEvents(events) : null,
+    components > 0 ? t.car.lossComponents(components) : null,
+    mileage > 0 ? t.car.lossMileage(mileage) : null,
   ].filter(Boolean);
 
   return (
     <div className={styles.deleteConfirm} role="alertdialog" aria-labelledby="delete-car-title" aria-describedby="delete-car-desc">
       <p id="delete-car-title" className={styles.deleteTitle}>
-        Удалить «{vehicle.name}»?
+        {t.car.deleteNamed(vehicle.name)}
       </p>
       <p id="delete-car-desc" className={styles.deleteText}>
-        {losses.length > 0 ? `Вместе с автомобилем удалятся ${losses.join(", ")}. ` : ""}
-        Отменить это нельзя.
+        {losses.length > 0 ? t.car.lossesLine(losses.join(", ")) : ""}
+        {t.records.cannotUndo}
       </p>
       <div className={styles.deleteActions}>
         <button ref={cancelRef} type="button" className={styles.ghostBtn} onClick={() => setConfirming(false)}>
-          Не удалять
+          {t.records.keep}
         </button>
         <button type="button" className={styles.dangerBtn} onClick={onDelete}>
-          Удалить автомобиль
+          {t.car.deleteCar}
         </button>
       </div>
     </div>
   );
-}
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n) % 100;
-  const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return many;
-  if (n1 > 1 && n1 < 5) return few;
-  if (n1 === 1) return one;
-  return many;
 }

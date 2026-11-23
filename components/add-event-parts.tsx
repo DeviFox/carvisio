@@ -3,43 +3,26 @@ import s from "./dialog.module.css";
 import { findActiveInstalledPart, formatDuration, formatKm } from "@/lib/compute";
 import { groupInt, groupMoney, groupedChange, intText } from "@/lib/number-input";
 import type { Condition, InstalledPart, MaintenanceEvent, MaintenanceType } from "@/lib/types";
+import { formatDate, getLocale, tr } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/react";
 
 type Field = "component" | "name" | "system" | "date" | "mileage" | "cost" | "lifeKm" | "lifeDays" | "notes";
 export type Errors = Partial<Record<Field, string>>;
 
-export const TYPES: { value: MaintenanceType; label: string }[] = [
-  { value: "replacement", label: "Замена" },
-  { value: "purchase", label: "Покупка" },
-  { value: "repair", label: "Ремонт" },
-  { value: "inspection", label: "Осмотр" },
-  { value: "fluid_service", label: "Долив жидкости" },
-  { value: "observation", label: "Заметка" },
+// Picker order; labels come from common.eventType.
+export const TYPES: MaintenanceType[] = [
+  "replacement", "purchase", "repair", "inspection", "fluid_service", "observation",
 ];
 
-export const COMPONENT_LABEL: Record<MaintenanceType, string> = {
-  replacement: "Что было заменено?",
-  purchase: "Что было куплено?",
-  repair: "Что было отремонтировано?",
-  inspection: "Что было проверено?",
-  fluid_service: "Что было долито?",
-  observation: "К чему относится",
-};
+export const CONDITIONS: (Condition | "")[] = ["", "good", "worn", "critical"];
 
-export const SUBMIT_LABEL: Record<MaintenanceType, string> = {
-  replacement: "Сохранить замену",
-  purchase: "Сохранить покупку",
-  repair: "Сохранить ремонт",
-  inspection: "Сохранить осмотр",
-  fluid_service: "Сохранить запись",
-  observation: "Сохранить запись",
-};
-
-export const CONDITIONS: { value: Condition | ""; label: string }[] = [
-  { value: "", label: "Не указан" },
-  { value: "good", label: "В норме" },
-  { value: "worn", label: "Требует внимания" },
-  { value: "critical", label: "Критично" },
-];
+export function conditionLabel(c: Condition | ""): string {
+  const t = tr();
+  if (c === "good") return t.common.status.ok;
+  if (c === "worn") return t.common.status.attention;
+  if (c === "critical") return t.common.status.critical;
+  return t.records.conditionNotSet;
+}
 
 export const CURRENCIES = ["RUB", "USD", "EUR", "KZT", "UAH", "BYN"];
 
@@ -74,15 +57,17 @@ export function hasSameDayRecord(
   );
 }
 
-// "15 ноября 2025": read as a local calendar date, no trailing "г." to collide with punctuation.
+// "15 ноября 2025" / "15 November 2025": a local calendar date. Russian drops
+// the trailing "г." Intl adds, so it doesn't collide with punctuation.
 export function formatLongDate(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  return `${date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} ${y}`;
+  const day = iso.slice(0, 10);
+  if (getLocale() === "ru") return `${formatDate(day, { day: "numeric", month: "long" })} ${day.slice(0, 4)}`;
+  return formatDate(day, { day: "numeric", month: "long", year: "numeric" });
 }
 
 // Repeat mode: what carries over unchanged, collapsed to one line the owner can reopen.
 export function RepeatSummary({ summary, onEdit }: { summary: string; onEdit: () => void }) {
+  const t = useT();
   return (
     <div className={s.repeatSummary}>
       <span className={s.repeatText}>{summary}</span>
@@ -90,18 +75,18 @@ export function RepeatSummary({ summary, onEdit }: { summary: string; onEdit: ()
         type="button"
         className={s.linkBtn}
         onClick={onEdit}
-        aria-label="Изменить тип, компонент и срок службы"
+        aria-label={t.records.editRepeatAria}
       >
-        Изменить
+        {t.records.edit}
       </button>
     </div>
   );
 }
 
 const TIME_UNITS = [
-  { value: "d", label: "дн.", days: 1 },
-  { value: "m", label: "мес.", days: 30 },
-  { value: "y", label: "лет", days: 365 },
+  { value: "d", label: "unitDays", days: 1 },
+  { value: "m", label: "unitMonths", days: 30 },
+  { value: "y", label: "unitYears", days: 365 },
 ] as const;
 type TimeUnit = (typeof TIME_UNITS)[number]["value"];
 
@@ -125,6 +110,7 @@ export function DaysInput({
   onChange: (days: string) => void;
   invalid?: boolean;
 }) {
+  const t = useT();
   const [amount, setAmount] = useState(() => splitDays(value).amount);
   const [unit, setUnit] = useState<TimeUnit>(() => splitDays(value).unit);
   const factor = TIME_UNITS.find((u) => u.value === unit)!.days;
@@ -166,7 +152,7 @@ export function DaysInput({
       />
       <select
         className={s.select}
-        aria-label="Единица времени"
+        aria-label={t.records.timeUnit}
         value={unit}
         onChange={(e) => {
           const next = e.target.value as TimeUnit;
@@ -175,7 +161,7 @@ export function DaysInput({
         }}
       >
         {TIME_UNITS.map((u) => (
-          <option key={u.value} value={u.value}>{u.label}</option>
+          <option key={u.value} value={u.value}>{t.records[u.label]}</option>
         ))}
       </select>
     </div>
@@ -203,6 +189,7 @@ export function ResourceFields({
   unit,
   errors,
 }: ResourceProps) {
+  const t = useT();
   return (
     <>
       <div className={s.field}>
@@ -212,7 +199,7 @@ export function ResourceFields({
             checked={tracking}
             onChange={(e) => onTrackingChange(e.target.checked)}
           />
-          Отслеживать срок службы
+          {t.records.trackLife}
         </label>
       </div>
 
@@ -220,7 +207,7 @@ export function ResourceFields({
         <div className={s.field}>
           <div className={s.row}>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ar-life-km">Срок службы по пробегу</label>
+              <label className={s.label} htmlFor="ar-life-km">{t.records.lifeByMileage}</label>
               <div className={s.suffixInput}>
                 <input
                   id="ar-life-km"
@@ -237,7 +224,7 @@ export function ResourceFields({
               {errors.lifeKm && <span className={s.error} id="ar-life-km-error">{errors.lifeKm}</span>}
             </div>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ar-life-days">Срок службы по времени</label>
+              <label className={s.label} htmlFor="ar-life-days">{t.records.lifeByTime}</label>
               <DaysInput
                 id="ar-life-days"
                 value={lifeDays}
@@ -248,7 +235,7 @@ export function ResourceFields({
             </div>
           </div>
           {!lifeKm.trim() && !lifeDays.trim() ? (
-            <span className={s.hint}>Для расчёта остатка задайте хотя бы один параметр.</span>
+            <span className={s.hint}>{t.records.lifeNeedOne}</span>
           ) : null}
         </div>
       ) : null}
@@ -276,11 +263,12 @@ export function CostFields({
   carried,
   error,
 }: CostProps) {
+  const t = useT();
   return (
     <div className={s.row}>
       <div className={s.field}>
         <label className={s.label} htmlFor="ar-cost">
-          Стоимость <span className={s.optional}>опционально</span>
+          {t.records.cost} <span className={s.optional}>{t.common.optional}</span>
         </label>
         <input
           id="ar-cost"
@@ -297,11 +285,11 @@ export function CostFields({
         {error ? (
           <span className={s.error} id="ar-cost-error">{error}</span>
         ) : carried ? (
-          <span className={s.carriedHint} id="ar-cost-carried">* Стоимость рассчитана по данным прошлой замены</span>
+          <span className={s.carriedHint} id="ar-cost-carried">{t.records.costCarried}</span>
         ) : null}
       </div>
       <div className={s.field}>
-        <label className={s.label} htmlFor="ar-cur">Валюта</label>
+        <label className={s.label} htmlFor="ar-cur">{t.records.currency}</label>
         <select
           id="ar-cur"
           className={s.select}
@@ -326,11 +314,12 @@ type NotesProps = {
 };
 
 export function NotesField({ isNote, value, onChange, carried, error }: NotesProps) {
+  const t = useT();
   return (
     <div className={s.field}>
       <label className={s.label} htmlFor="ar-notes">
-        {isNote ? "Текст заметки" : "Заметка"}
-        {isNote ? null : <span className={s.optional}>опционально</span>}
+        {isNote ? t.records.noteText : t.records.note}
+        {isNote ? null : <span className={s.optional}>{t.common.optional}</span>}
       </label>
       <textarea
         id="ar-notes"
@@ -339,13 +328,13 @@ export function NotesField({ isNote, value, onChange, carried, error }: NotesPro
         aria-describedby={error ? "ar-notes-error" : carried ? "ar-notes-carried" : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={isNote ? undefined : "Марка, артикул или другие подробности"}
+        placeholder={isNote ? undefined : t.records.notePlaceholder}
       />
       {error ? (
         <span className={s.error} id="ar-notes-error">{error}</span>
       ) : carried ? (
         <span className={s.carriedHint} id="ar-notes-carried">
-          * Заметку подставили из прошлой замены
+          {t.records.noteCarried}
         </span>
       ) : null}
     </div>
@@ -369,10 +358,11 @@ export function resourceLine(
   lifeKm: string,
   lifeDays: string,
 ): string {
-  if (!tracking) return "Срок службы не отслеживается";
+  const t = tr().records;
+  if (!tracking) return t.lifeNotTracked;
   const parts = [
     lifeKm.trim() ? formatKm(toNumber(lifeKm)) : null,
     lifeDays.trim() ? formatDuration(toNumber(lifeDays)) : null,
   ].filter(Boolean);
-  return parts.length ? `Срок службы как у прошлой детали: ${parts.join(" · ")}` : "Срок службы не задан";
+  return parts.length ? t.lifeAsBefore(parts.join(" · ")) : t.lifeNotSet;
 }

@@ -6,6 +6,7 @@ import s from "./report-panel.module.css";
 import ReportSheet from "./report-sheet";
 import { ExportIcon } from "./icons";
 import type { Vehicle } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 type Props = {
   vehicle: Vehicle;
@@ -30,6 +31,7 @@ function readOptions(): Options {
 // sheet sits at the top of <body>, hidden on screen, and is the only thing
 // the printer sees: printing the page in place would drag the app along.
 export default function ReportPanel({ vehicle, onClose }: Props) {
+  const t = useT();
   const [today] = useState(() => new Date());
   const [options, setOptions] = useState<Options>(readOptions);
 
@@ -46,11 +48,11 @@ export default function ReportPanel({ vehicle, onClose }: Props) {
   // Chrome and Safari offer the page title as the PDF's file name.
   useEffect(() => {
     const before = document.title;
-    document.title = `${vehicle.name} — история обслуживания`;
+    document.title = t.report.docTitle(vehicle.name);
     return () => {
       document.title = before;
     };
-  }, [vehicle.name]);
+  }, [vehicle.name, t]);
 
   const sheetProps = {
     vehicle,
@@ -64,11 +66,11 @@ export default function ReportPanel({ vehicle, onClose }: Props) {
       <div className={s.controls}>
         <div className={s.head}>
           <h2 className={s.title} id="report-panel-title">
-            Отчёт
+            {t.report.title}
           </h2>
           <div className={s.actions}>
             <button type="button" className={s.closeBtn} onClick={onClose}>
-              Закрыть
+              {t.report.close}
             </button>
             <button
               type="button"
@@ -76,20 +78,20 @@ export default function ReportPanel({ vehicle, onClose }: Props) {
               onClick={() => window.print()}
             >
               <ExportIcon />
-              Сохранить PDF
+              {t.report.savePdf}
             </button>
           </div>
         </div>
 
         <fieldset className={s.options}>
-          <legend className={s.legend}>Содержание отчёта</legend>
+          <legend className={s.legend}>{t.report.contents}</legend>
           <label className={s.check}>
             <input
               type="checkbox"
               checked={options.costs}
               onChange={(e) => setOption("costs", e.target.checked)}
             />
-            Стоимость работ
+            {t.report.optCosts}
           </label>
           <label className={s.check}>
             <input
@@ -97,13 +99,11 @@ export default function ReportPanel({ vehicle, onClose }: Props) {
               checked={options.status}
               onChange={(e) => setOption("status", e.target.checked)}
             />
-            Текущее состояние компонентов
+            {t.report.optStatus}
           </label>
         </fieldset>
         <p className={s.hint}>
-          История обслуживания и записи о заменённых компонентах включаются
-          всегда. В окне печати выберите «Сохранить как PDF» и выключите
-          колонтитулы.
+          {t.report.hint}
         </p>
       </div>
 

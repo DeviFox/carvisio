@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import styles from "@/app/car/page.module.css";
-import { EVENT_TYPE_LABEL, formatKm, formatMoney } from "@/lib/compute";
+import styles from "@/app/(ru)/car/page.module.css";
+import { eventTypeLabel, formatKm, formatMoney } from "@/lib/compute";
+import { formatDate, parseDay } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/react";
 import type { Component, MaintenanceEvent } from "@/lib/types";
 
 const VISIBLE = 5;
@@ -16,6 +18,7 @@ type Props = {
 // The car's maintenance timeline. Shows the latest five until История ships;
 // every row opens the record so a typo can be fixed or removed.
 export default function RecentWork({ events, components, onOpen }: Props) {
+  const t = useT();
   const [showAll, setShowAll] = useState(false);
   if (events.length === 0) return null;
   const shown = showAll ? events : events.slice(0, VISIBLE);
@@ -24,11 +27,11 @@ export default function RecentWork({ events, components, onOpen }: Props) {
     <section aria-labelledby="recent-work-title">
       <div className={styles.sectionHead}>
         <h2 id="recent-work-title" className={styles.sectionTitle}>
-          {showAll ? "Все работы" : "Недавние работы"}
+          {showAll ? t.car.allWork : t.car.recentWork}
         </h2>
         {events.length > VISIBLE ? (
           <button type="button" className={styles.sectionLink} onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Свернуть" : `Показать все ${events.length}`}
+            {showAll ? t.car.collapse : t.car.showAll(events.length)}
           </button>
         ) : null}
       </div>
@@ -38,19 +41,19 @@ export default function RecentWork({ events, components, onOpen }: Props) {
             .map((id) => components.find((c) => c.id === id)?.name)
             .filter(Boolean)
             .join(", ");
-          const date = new Date(e.date);
+          const date = parseDay(e.date.slice(0, 10));
           return (
             <li key={e.id} className={styles.eventItem}>
               <button type="button" className={styles.eventRow} onClick={() => onOpen(e)}>
                 <span className={styles.eventDate}>
                   <span className={styles.eventDateDay}>
-                    {date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" })}
+                    {formatDate(date, { day: "2-digit", month: "short" })}
                   </span>
                   <span className={styles.eventDateYear}>{date.getFullYear()}</span>
                 </span>
                 <span className={styles.eventMain}>
                   <span className={styles.eventTitle}>
-                    {EVENT_TYPE_LABEL[e.type]}
+                    {eventTypeLabel(e.type)}
                     {names ? `: ${names}` : ""}
                   </span>
                   <span className={`${styles.eventMeta} numeric`}>

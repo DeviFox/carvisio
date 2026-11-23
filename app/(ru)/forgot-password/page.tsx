@@ -5,9 +5,11 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import AuthShell, { EmailField, FormError, FormSuccess, SubmitButton } from "@/components/auth-shell";
 import styles from "@/components/auth.module.css";
 import { api } from "@/lib/api";
-import { EMAIL_FORMAT_ERROR, commonAuthError, focusOnDesktop, looksLikeEmail } from "@/lib/auth";
+import { emailFormatError, commonAuthError, focusOnDesktop, looksLikeEmail } from "@/lib/auth";
+import { useT } from "@/lib/i18n/react";
 
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
@@ -31,7 +33,7 @@ export default function ForgotPasswordPage() {
     if (busy) return;
     setFormError("");
     if (!looksLikeEmail(email)) {
-      setError(EMAIL_FORMAT_ERROR);
+      setError(emailFormatError());
       emailRef.current?.focus();
       return;
     }
@@ -50,18 +52,17 @@ export default function ForgotPasswordPage() {
   if (sentTo) {
     return (
       <AuthShell
-        title="Проверьте почту"
-        aside={<Link href="/login/" className={styles.link}>Вернуться ко входу</Link>}
+        title={t.auth.forgot.sentTitle}
+        aside={<Link href="/login/" className={styles.link}>{t.auth.backToLogin}</Link>}
       >
         <div ref={sentRef} className={styles.actions} tabIndex={-1}>
           <FormSuccess>
-            Если аккаунт с адресом <strong>{sentTo}</strong> существует, мы отправили на него ссылку для
-            сброса пароля. Она действует 1 час.
+            {t.auth.forgot.sentBefore} <strong>{sentTo}</strong> {t.auth.forgot.sentAfter}
           </FormSuccess>
           <p className={styles.subtitle}>
-            Письма нет пару минут — загляните в «Спам» или{" "}
+            {t.auth.forgot.noEmail}{" "}
             <button type="button" className={styles.link} onClick={() => setSentTo("")}>
-              отправьте ещё раз
+              {t.auth.forgot.resend}
             </button>
             .
           </p>
@@ -72,9 +73,9 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title="Восстановление пароля"
-      subtitle="Укажите почту аккаунта. Пришлём на неё ссылку, по которой можно задать новый пароль."
-      aside={<>Вспомнили пароль? <Link href="/login/" className={styles.link}>Войти</Link></>}
+      title={t.auth.forgot.title}
+      subtitle={t.auth.forgot.subtitle}
+      aside={<>{t.auth.forgot.remembered} <Link href="/login/" className={styles.link}>{t.auth.signIn}</Link></>}
     >
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <FormError>{formError}</FormError>
@@ -85,7 +86,7 @@ export default function ForgotPasswordPage() {
           onChange={(v) => { setEmail(v); setError(""); }}
           error={error}
         />
-        <SubmitButton busy={busy} busyText="Отправляем…">Отправить ссылку</SubmitButton>
+        <SubmitButton busy={busy} busyText={t.auth.forgot.busy}>{t.auth.forgot.submit}</SubmitButton>
       </form>
     </AuthShell>
   );

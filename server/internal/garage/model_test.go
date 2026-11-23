@@ -63,6 +63,13 @@ func TestValidate(t *testing.T) {
 	if err := ok.Validate(); err != nil {
 		t.Fatalf("valid changes: %v", err)
 	}
+	// A full VIN and a Japanese frame number are both accepted.
+	for _, vin := range []string{"JTDBT923X71234567", "NZE121-1234567"} {
+		c := Changes{Upsert: Garage{Vehicles: []Vehicle{{ID: id1, Units: "km", VIN: ptr(vin)}}}}
+		if err := c.Validate(); err != nil {
+			t.Errorf("vin %s: %v", vin, err)
+		}
+	}
 
 	cases := map[string]struct {
 		c    Changes
@@ -76,6 +83,8 @@ func TestValidate(t *testing.T) {
 			ComponentIDs: []string{id1, id1}}}}}, "upsert.events[0].componentIds[1]: duplicate"},
 		"long name": {Changes{Upsert: Garage{Systems: []System{{ID: id1, VehicleID: id2, Category: "engine",
 			Name: strings.Repeat("я", maxNameLen+1)}}}}, "upsert.systems[0].name: too long"},
+		"lower-case vin": {Changes{Upsert: Garage{Vehicles: []Vehicle{{ID: id1, Units: "km",
+			VIN: ptr("jtdbt923x71234567")}}}}, "upsert.vehicles[0].vin: bad format"},
 	}
 	for name, tc := range cases {
 		err := tc.c.Validate()
@@ -84,3 +93,5 @@ func TestValidate(t *testing.T) {
 		}
 	}
 }
+
+func ptr[T any](v T) *T { return &v }

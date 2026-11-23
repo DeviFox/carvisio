@@ -15,7 +15,8 @@ import { ArrowRightIcon, CloseIcon } from "./icons";
 import { useGarage } from "@/lib/store";
 import { lockPageScroll } from "@/lib/use-modal";
 import { groupInt, groupedChange, intText } from "@/lib/number-input";
-import { BODY_TYPE_LABEL, BodyType, Vehicle } from "@/lib/types";
+import { BODY_TYPES, SEED_SYSTEMS, BodyType, Vehicle } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 // Body types with a redesigned, non-boxy illustration. The rest still render
 // via the legacy slab-based builder and are frozen in the picker until they
@@ -25,7 +26,10 @@ const READY_BODY_TYPES: ReadonlySet<BodyType> = new Set([
 ]);
 
 
-type DraftErrors = Partial<Record<"make" | "model" | "year" | "mileage", string>>;
+type DraftErrors = Partial<Record<"make" | "model" | "year" | "mileage" | "vin", string>>;
+
+// Upper-case, no spaces, only what a VIN or body number can contain.
+const normalizeVin = (s: string) => s.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 20);
 
 type Props = {
   open: boolean;
@@ -39,6 +43,7 @@ type Props = {
 const CURRENT_YEAR = new Date().getFullYear();
 
 export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDelete }: Props) {
+  const t = useT();
   const addVehicle = useGarage((s) => s.addVehicle);
   const addSystem = useGarage((s) => s.addSystem);
   const updateVehicle = useGarage((s) => s.updateVehicle);
@@ -52,6 +57,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
   const [year, setYear] = useState(editVehicle?.year ? String(editVehicle.year) : "");
   const [fuel, setFuel] = useState(editVehicle?.fuelType ?? "");
   const [engine, setEngine] = useState(editVehicle?.engine ?? "");
+  const [vin, setVin] = useState(editVehicle?.vin ?? "");
   const [mileage, setMileage] = useState(
     intText(editVehicle?.currentMileageKm),
   );
@@ -66,6 +72,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
     setYear("");
     setFuel("");
     setEngine("");
+    setVin("");
     setMileage("");
     setBodyType("");
     setErrors({});
@@ -96,6 +103,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
         setYear(editVehicle.year ? String(editVehicle.year) : "");
         setFuel(editVehicle.fuelType ?? "");
         setEngine(editVehicle.engine ?? "");
+        setVin(editVehicle.vin ?? "");
         setMileage(intText(editVehicle.currentMileageKm));
         setBodyType(editVehicle.bodyType ?? "");
       }
@@ -124,20 +132,25 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
 
   function validate(): DraftErrors {
     const next: DraftErrors = {};
-    if (!make.trim()) next.make = "Укажите марку.";
-    if (!model.trim()) next.model = "Укажите модель.";
+    if (!make.trim()) next.make = t.car.err.make;
+    if (!model.trim()) next.model = t.car.err.model;
     const y = Number(year);
     if (!year.trim()) {
-      next.year = "Укажите год.";
+      next.year = t.car.err.year;
     } else if (!Number.isInteger(y) || y < 1900 || y > CURRENT_YEAR + 1) {
-      next.year = `Год должен быть между 1900 и ${CURRENT_YEAR + 1}.`;
+      next.year = t.car.err.yearRange(CURRENT_YEAR + 1);
     }
     const m = Number(mileage.replace(/\s/g, ""));
     // Optional on a new car; once known, it can be corrected but not erased.
     if (!mileage.trim()) {
-      if (editVehicle?.currentMileageKm !== undefined) next.mileage = "Укажите текущий пробег.";
+      if (editVehicle?.currentMileageKm !== undefined) next.mileage = t.car.err.mileage;
     } else if (!Number.isFinite(m) || m < 0 || m > 10_000_000) {
-      next.mileage = "Введите пробег цифрами.";
+      next.mileage = t.common.mileageDigits;
+    }
+    if (vin && vin.length < 5) {
+      next.vin = t.car.err.vinShort;
+    } else if (vin.length === 17 && /[IOQ]/.test(vin)) {
+      next.vin = t.car.err.vinLetters;
     }
     return next;
   }
@@ -157,6 +170,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
       year: Number(year),
       fuelType: fuel || undefined,
       engine: engine.trim() || undefined,
+      vin: vin || undefined,
       bodyType: (bodyType || undefined) as BodyType | undefined,
       currentMileageKm: mileage.trim() ? Number(mileage.replace(/\s/g, "")) : undefined,
       units: "km" as const,
@@ -169,14 +183,10 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
       const vehicle = addVehicle(base);
       // Seed the standard set of systems so every zone on the illustration is
       // interactive out of the box. Owner can archive what they don't track.
-      addSystem({ vehicleId: vehicle.id, name: "Двигатель", category: "engine" });
-      addSystem({ vehicleId: vehicle.id, name: "Охлаждение", category: "cooling" });
-      addSystem({ vehicleId: vehicle.id, name: "Трансмиссия", category: "transmission" });
-      addSystem({ vehicleId: vehicle.id, name: "Подвеска", category: "suspension" });
-      addSystem({ vehicleId: vehicle.id, name: "Тормоза", category: "brakes" });
-      addSystem({ vehicleId: vehicle.id, name: "Шины", category: "tires" });
-      addSystem({ vehicleId: vehicle.id, name: "Электрика", category: "electrical" });
-      addSystem({ vehicleId: vehicle.id, name: "Прочее", category: "other" });
+      // Named in the interface language; from then on the names are the owner's.
+      for (const category of SEED_SYSTEMS) {
+        addSystem({ vehicleId: vehicle.id, name: t.common.systemName[category], category });
+      }
       savedId = vehicle.id;
     }
     reset();
@@ -222,31 +232,31 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
       >
         <div className={styles.header}>
           <h2 className={styles.title} id={titleId}>
-            {isEdit ? "Параметры автомобиля" : "Добавить автомобиль"}
+            {isEdit ? t.car.carSettings : t.car.addCar}
           </h2>
           <button
             type="button"
             className={styles.close}
             onClick={close}
-            aria-label="Закрыть"
+            aria-label={t.common.close}
           >
             <CloseIcon />
           </button>
         </div>
 
         {isEdit ? null : (
-          <div className={styles.stepper} aria-label="Шаги мастера">
+          <div className={styles.stepper} aria-label={t.car.wizardSteps}>
             <div className={`${styles.step} ${styles.active}`}>
               <span className={styles.stepDot}>1</span>
               <span className={styles.stepLabel}>
-                Основные данные
-                <span className={styles.mobileCounter}>· шаг 1 из 2</span>
+                {t.car.stepBasics}
+                <span className={styles.mobileCounter}>{t.car.stepCounter}</span>
               </span>
             </div>
             <div className={styles.stepRule} aria-hidden="true" />
             <div className={styles.step}>
               <span className={styles.stepDot}>2</span>
-              <span className={styles.stepLabel}>Дополнительно</span>
+              <span className={styles.stepLabel}>{t.car.stepMore}</span>
             </div>
           </div>
         )}
@@ -256,7 +266,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
           <div className={styles.row}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="f-make">
-                Марка
+                {t.car.make}
               </label>
               <input
                 id="f-make"
@@ -278,7 +288,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="f-model">
-                Модель
+                {t.car.model}
               </label>
               <input
                 id="f-model"
@@ -302,7 +312,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
           <div className={styles.row}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="f-year">
-                Год выпуска
+                {t.car.year}
               </label>
               <input
                 id="f-year"
@@ -325,7 +335,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="f-fuel">
-                Тип топлива
+                {t.car.fuel}
               </label>
               <select
                 id="f-fuel"
@@ -333,20 +343,18 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
                 value={fuel}
                 onChange={(e) => setFuel(e.target.value)}
               >
-                <option value="">не указан</option>
-                <option value="gasoline">Бензин</option>
-                <option value="diesel">Дизель</option>
-                <option value="hybrid">Гибрид</option>
-                <option value="electric">Электро</option>
-                <option value="lpg">Газ</option>
+                <option value="">{t.common.notSet}</option>
+                {(Object.entries(t.common.fuel) as Array<[string, string]>).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div className={`${styles.field} ${styles.full}`}>
             <label className={styles.label} htmlFor="f-body">
-              Тип кузова
-              <span className={styles.optional}>для схемы на странице автомобиля</span>
+              {t.car.bodyType}
+              <span className={styles.optional}>{t.car.bodyTypeHint}</span>
             </label>
             <select
               id="f-body"
@@ -354,12 +362,13 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
               value={bodyType}
               onChange={(e) => setBodyType(e.target.value as BodyType | "")}
             >
-              <option value="">не указан</option>
-              {(Object.entries(BODY_TYPE_LABEL) as Array<[BodyType, string]>).map(([k, v]) => {
+              <option value="">{t.common.notSet}</option>
+              {BODY_TYPES.map((k) => {
+                const v = t.common.bodyType[k];
                 const ready = READY_BODY_TYPES.has(k);
                 return (
                   <option key={k} value={k} disabled={!ready}>
-                    {ready ? v : `${v} (in dev)`}
+                    {ready ? v : `${v} (${t.car.inDev})`}
                   </option>
                 );
               })}
@@ -368,15 +377,15 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
 
           <div className={`${styles.field} ${styles.full}`}>
             <label className={styles.label} htmlFor="f-engine">
-              Двигатель
-              <span className={styles.optional}>опционально</span>
+              {t.car.engine}
+              <span className={styles.optional}>{t.common.optional}</span>
             </label>
             <input
               id="f-engine"
               className={styles.input}
               value={engine}
               onChange={(e) => setEngine(e.target.value)}
-              placeholder="например, 1.5 1NZ-FE"
+              placeholder={t.car.enginePlaceholder}
               autoComplete="off"
             />
           </div>
@@ -384,7 +393,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
           <div className={styles.row}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="f-mileage">
-                Текущий пробег
+                {t.car.mileage}
               </label>
               <input
                 id="f-mileage"
@@ -404,7 +413,38 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
                 </span>
               ) : (
                 <span className={styles.hint} id="h-mileage">
-                  Актуальное значение с одометра — вы сможете уточнить позже.
+                  {t.car.mileageHint}
+                </span>
+              )}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="f-vin">
+                {t.car.vin}
+                <span className={styles.optional}>{t.common.optional}</span>
+              </label>
+              <input
+                id="f-vin"
+                className={`${styles.input} ${errors.vin ? styles.invalid : ""} mono`}
+                value={vin}
+                onChange={(e) => {
+                  setVin(normalizeVin(e.target.value));
+                  if (errors.vin) setErrors((x) => ({ ...x, vin: undefined }));
+                }}
+                placeholder="JTDBT923X71234567"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                maxLength={20}
+                aria-invalid={!!errors.vin}
+                aria-describedby={errors.vin ? "e-vin" : "h-vin"}
+              />
+              {errors.vin ? (
+                <span className={styles.error} id="e-vin">
+                  {errors.vin}
+                </span>
+              ) : (
+                <span className={styles.hint} id="h-vin">
+                  {t.car.vinHint}
                 </span>
               )}
             </div>
@@ -418,10 +458,10 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
               className={styles.ghostBtn}
               onClick={close}
             >
-              Отмена
+              {t.common.cancel}
             </button>
             <button type="submit" className={styles.primary}>
-              {isEdit ? "Сохранить" : "Добавить"}
+              {isEdit ? t.common.save : t.common.add}
               <ArrowRightIcon />
             </button>
           </div>

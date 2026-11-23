@@ -13,6 +13,7 @@ import {
 import type { Flat } from "@/lib/iso/iso-kit";
 import { RASTER_CARS, type RasterCar, type RasterZone } from "@/lib/iso/raster-cars";
 import type { BodyType, SystemCategory } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 type ZoneState = "ok" | "attention" | "critical" | "unknown";
 
@@ -24,16 +25,6 @@ type Props = {
   onZoneClick?: (zone: SystemCategory) => void;
 };
 
-const ZONE_LABEL: Partial<Record<SystemCategory, string>> = {
-  engine: "Двигатель",
-  transmission: "Трансмиссия",
-  brakes: "Тормоза",
-  suspension: "Подвеска",
-  tires: "Шины",
-  electrical: "Электрика",
-  cooling: "Охлаждение",
-  other: "Прочее",
-};
 
 // Room kept around the drawn car for the hover label and the badge halos.
 const CROP_PAD = 22;
@@ -83,6 +74,8 @@ function RasterCarIllustration({
   onZoneClick,
 }: Props & { raster: RasterCar }) {
   const titleId = useId();
+  const t = useT();
+  const ZONE_LABEL: Partial<Record<SystemCategory, string>> = t.common.systemName;
   const { hovered, handlersFor } = useZoneHandlers(onZoneClick);
   const { crop } = raster;
   const at = ([x, y]: Flat) => ({
@@ -120,7 +113,7 @@ function RasterCarIllustration({
         aria-labelledby={titleId}
         focusable="false"
       >
-        <title id={titleId}>Ваш автомобиль</title>
+        <title id={titleId}>{t.car.yourCar}</title>
         <g className={styles.zones} aria-hidden="true">
           {zones.map(([id, zone]) => (
             <path
@@ -166,6 +159,8 @@ function VectorCarIllustration({
   onZoneClick,
 }: Props) {
   const titleId = useId();
+  const t = useT();
+  const ZONE_LABEL: Partial<Record<SystemCategory, string>> = t.common.systemName;
   const { hovered, handlersFor } = useZoneHandlers(onZoneClick);
   const car = useMemo(() => buildCar(bodyType), [bodyType]);
   // The silhouettes are drawn on a shared canvas with generous margins; crop
@@ -191,7 +186,7 @@ function VectorCarIllustration({
         aria-labelledby={titleId}
         focusable="false"
       >
-        <title id={titleId}>Ваш автомобиль</title>
+        <title id={titleId}>{t.car.yourCar}</title>
 
         <g ref={carRef} aria-hidden="true">
           {car.groups.map((group) => (

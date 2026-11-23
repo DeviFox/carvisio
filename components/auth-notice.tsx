@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import styles from "./auth.module.css";
 import { CheckIcon, CloseIcon } from "./icons";
 import { useAuth } from "@/lib/auth";
+import { useT } from "@/lib/i18n/react";
 
 // The end of a sign-in, register or reset flow, or the garage moving into the
 // account: one quiet line on the garage instead of a silent change. Taken from
 // the store as it arrives, so it is shown once; the close button or leaving
 // the garage ends it.
 export default function AuthNotice() {
+  const t = useT();
   const [text, setText] = useState<string | null>(null);
   const notice = useAuth((s) => s.notice);
 
@@ -27,7 +29,7 @@ export default function AuthNotice() {
         <div className={`${styles.success} ${styles.notice}`}>
           <CheckIcon className={styles.successIcon} />
           <div>{text}</div>
-          <button type="button" className={styles.noticeClose} onClick={() => setText(null)} aria-label="Закрыть уведомление">
+          <button type="button" className={styles.noticeClose} onClick={() => setText(null)} aria-label={t.auth.closeNotice}>
             <CloseIcon />
           </button>
         </div>

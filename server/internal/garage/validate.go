@@ -2,6 +2,7 @@ package garage
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"unicode/utf8"
 )
@@ -32,6 +33,10 @@ var (
 	priorities       = []string{"low", "normal", "high"}
 	reminderStatuses = []string{"open", "done", "dismissed"}
 )
+
+// A 17-character VIN or a shorter body (frame) number, upper-case, no spaces.
+// The migration repeats it as a CHECK.
+var vinPattern = regexp.MustCompile(`^[A-Z0-9-]{5,20}$`)
 
 // Validate reports the first problem in c, naming the field, e.g.
 // "upsert.events[3].type: unknown value". Ownership and references are
@@ -69,6 +74,9 @@ func (g *Garage) validate(v *checker) {
 		v.optText("fuelType", x.FuelType, maxNameLen)
 		v.optText("engine", x.Engine, maxNameLen)
 		v.optOneOf("bodyType", x.BodyType, bodyTypes)
+		if x.VIN != nil && !vinPattern.MatchString(*x.VIN) {
+			v.fail("vin", "bad format")
+		}
 		v.oneOf("units", x.Units, unitsValues)
 	}
 	for i, x := range g.Systems {

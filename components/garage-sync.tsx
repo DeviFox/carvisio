@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import s from "./dialog.module.css";
 import { useModal } from "@/lib/use-modal";
 import { answerOffer, startSync, useSync } from "@/lib/sync";
+import { useT } from "@/lib/i18n/react";
 
 // Runs garage sync for the whole app (mounted once, in the root layout) and
 // asks the one question it can't answer alone.
@@ -18,6 +19,7 @@ export default function GarageSync() {
 // neither answer loses anything.
 function ImportOffer({ newCars, accountCars }: { newCars: number; accountCars: number }) {
   const titleId = useId();
+  const t = useT().auth.sync;
   const descId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -45,37 +47,25 @@ function ImportOffer({ newCars, accountCars }: { newCars: number; accountCars: n
         <div className={s.header}>
           <div className={s.titleGroup}>
             <h2 className={s.title} id={titleId}>
-              Добавить {newCars === 1 ? "машину" : "машины"} из браузера?
+              {t.offerTitle(newCars)}
             </h2>
             <p className={s.subtitle} id={descId}>
-              {newCars === 1
-                ? "На этом устройстве есть машина, которой нет в облаке."
-                : `На этом устройстве есть ${cars(newCars)}, которых нет в облаке.`}{" "}
-              В облаке уже {cars(accountCars)}. Если добавить, все они будут объеденены в одном гараже на любом
-              устройстве.
+              {t.offerLocal(newCars)} {t.offerCloud(accountCars)}
             </p>
           </div>
         </div>
         <p className={s.hint}>
-          Если не добавлять, машины из устройства будут скрыты и вернутся сюда после выхода из аккаунта.
+          {t.offerHint}
         </p>
         <div className={s.footer}>
           <button type="button" className={s.ghostBtn} onClick={() => answer(false)} disabled={busy}>
-            Не добавлять
+            {t.offerDecline}
           </button>
           <button ref={addRef} type="button" className={s.primary} onClick={() => answer(true)} disabled={busy}>
-            {busy ? "Добавляем…" : "Добавить в облако"}
+            {busy ? t.offerBusy : t.offerAccept}
           </button>
         </div>
       </div>
     </div>
   );
-}
-
-function cars(n: number): string {
-  const abs = n % 100;
-  const n1 = abs % 10;
-  const word =
-    abs > 10 && abs < 20 ? "машин" : n1 === 1 ? "машина" : n1 > 1 && n1 < 5 ? "машины" : "машин";
-  return `${n} ${word}`;
 }

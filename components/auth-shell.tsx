@@ -7,6 +7,7 @@ import form from "./dialog.module.css";
 import styles from "./auth.module.css";
 import AppBar, { VersionTag } from "./app-bar";
 import { ArrowLeftIcon, CheckIcon, EyeIcon, EyeOffIcon } from "./icons";
+import { useT } from "@/lib/i18n/react";
 
 type ShellProps = {
   title: string;
@@ -20,11 +21,12 @@ type ShellProps = {
 // modal: password managers, the browser's back button and the link from the
 // reset email all expect a real address.
 export default function AuthShell({ title, subtitle, aside, children }: ShellProps) {
+  const t = useT();
   return (
     <div className={shell.shell}>
       <header className={shell.topBar}>
         <div className={shell.topBrand}>
-          <Link href="/" className={shell.toolBtn} aria-label="В гараж">
+          <Link href="/" className={shell.toolBtn} aria-label={t.auth.toGarage}>
             <ArrowLeftIcon />
           </Link>
           <div className={shell.brandMark} aria-hidden="true">c</div>
@@ -99,9 +101,10 @@ type FieldProps = {
 export const EmailField = forwardRef<HTMLInputElement, Omit<FieldProps, "label" | "autoComplete"> & { autoComplete?: string }>(
   function EmailField({ error, value, onChange, autoComplete = "username" }, ref) {
     const id = useId();
+    const t = useT();
     return (
       <div className={form.field}>
-        <label htmlFor={id} className={form.label}>Почта</label>
+        <label htmlFor={id} className={form.label}>{t.auth.email}</label>
         <input
           ref={ref}
           id={id}
@@ -128,6 +131,7 @@ export const PasswordField = forwardRef<HTMLInputElement, FieldProps>(function P
   ref,
 ) {
   const id = useId();
+  const t = useT();
   const [shown, setShown] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const message = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
@@ -157,7 +161,7 @@ export const PasswordField = forwardRef<HTMLInputElement, FieldProps>(function P
           type="button"
           className={styles.reveal}
           onClick={() => setShown((s) => !s)}
-          aria-label="Показать пароль"
+          aria-label={t.auth.showPassword}
           aria-pressed={shown}
         >
           {shown ? <EyeOffIcon /> : <EyeIcon />}
@@ -166,7 +170,7 @@ export const PasswordField = forwardRef<HTMLInputElement, FieldProps>(function P
       {/* After the input in the DOM, so Tab goes email → password → this link;
           the grid still draws it at the right end of the label row. */}
       {labelAside ? <div className={styles.passwordAside}>{labelAside}</div> : null}
-      {capsLock ? <div id={`${id}-caps`} className={`${form.warning} ${styles.passwordMsg}`}>Включён Caps Lock</div> : null}
+      {capsLock ? <div id={`${id}-caps`} className={`${form.warning} ${styles.passwordMsg}`}>{t.auth.capsLock}</div> : null}
       {error ? (
         <div id={`${id}-error`} className={`${form.error} ${styles.passwordMsg}`}>{error}</div>
       ) : hint ? (

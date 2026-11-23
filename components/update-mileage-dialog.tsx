@@ -8,6 +8,7 @@ import { useGarage } from "@/lib/store";
 import { assertNewerMileage, formatKm } from "@/lib/compute";
 import { groupInt, groupedChange, intText } from "@/lib/number-input";
 import type { Vehicle } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 type Props = {
   open: boolean;
@@ -17,6 +18,7 @@ type Props = {
 
 export default function UpdateMileageDialog({ open, onClose, vehicle }: Props) {
   const titleId = useId();
+  const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const { overlayClick, trapTab } = useModal(open, onClose, firstFieldRef);
@@ -53,14 +55,14 @@ export default function UpdateMileageDialog({ open, onClose, vehicle }: Props) {
       >
         <div className={s.header}>
           <div className={s.titleGroup}>
-            <h2 className={s.title} id={titleId}>Обновить пробег</h2>
+            <h2 className={s.title} id={titleId}>{t.records.updateMileage}</h2>
             <p className={s.subtitle}>
               {vehicle.currentMileageKm !== undefined
-                ? `Текущий: ${formatKm(vehicle.currentMileageKm)}`
-                : "Пробег ещё не указан."}
+                ? t.records.currentMileage(formatKm(vehicle.currentMileageKm))
+                : t.records.mileageNotSetYet}
             </p>
           </div>
-          <button type="button" className={s.close} onClick={onClose} aria-label="Закрыть">
+          <button type="button" className={s.close} onClick={onClose} aria-label={t.common.close}>
             <CloseIcon />
           </button>
         </div>
@@ -68,7 +70,7 @@ export default function UpdateMileageDialog({ open, onClose, vehicle }: Props) {
         <form className={s.form} onSubmit={onSubmit} noValidate>
           <div className={s.field}>
             <label className={s.label} htmlFor="mu-mileage">
-              Новый пробег <span className={s.required} aria-hidden="true">*</span>
+              {t.records.newMileage} <span className={s.required} aria-hidden="true">*</span>
             </label>
             <div className={s.suffixInput}>
               <input
@@ -83,23 +85,23 @@ export default function UpdateMileageDialog({ open, onClose, vehicle }: Props) {
                 aria-describedby={error ? "mu-err" : undefined}
                 required
               />
-              <span className={s.suffix}>{"км"}</span>
+              <span className={s.suffix}>{t.common.kmUnit}</span>
             </div>
             {error ? (
               <span className={s.error} id="mu-err">{error}</span>
             ) : (
               <span className={s.hint}>
-                Значение с одометра. Пробег не может уменьшаться.
+                {t.records.mileageHint}
               </span>
             )}
           </div>
 
           <div className={s.footer}>
             <button type="button" className={s.ghostBtn} onClick={onClose}>
-              Отмена
+              {t.common.cancel}
             </button>
             <button type="submit" className={s.primary}>
-              Сохранить
+              {t.common.save}
               <ArrowRightIcon />
             </button>
           </div>

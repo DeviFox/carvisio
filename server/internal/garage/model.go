@@ -56,6 +56,7 @@ type Vehicle struct {
 	FuelType         *string `json:"fuelType,omitempty"`
 	Engine           *string `json:"engine,omitempty"`
 	BodyType         *string `json:"bodyType,omitempty"`
+	VIN              *string `json:"vin,omitempty"`
 	CurrentMileageKm *Km     `json:"currentMileageKm,omitempty"`
 	Units            string  `json:"units"`
 	CreatedAt        Instant `json:"createdAt"`

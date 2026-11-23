@@ -7,6 +7,7 @@ import styles from "./account-control.module.css";
 import { UserIcon } from "./icons";
 import { commonAuthError, useAuth } from "@/lib/auth";
 import { flushBeforeLogout } from "@/lib/sync";
+import { useT } from "@/lib/i18n/react";
 
 type Props = {
   // Phones: an icon only, the top bar has no room for a word.
@@ -16,6 +17,7 @@ type Props = {
 // Guest: a quiet "Войти". Signed in: the person icon opens a small panel with
 // the account's email and "Выйти".
 export default function AccountControl({ compact }: Props) {
+  const t = useT();
   const status = useAuth((s) => s.status);
   const user = useAuth((s) => s.user);
   const load = useAuth((s) => s.load);
@@ -57,20 +59,20 @@ export default function AccountControl({ compact }: Props) {
     ) : (
       <span className={`${styles.signIn} ${styles.ghost}`} aria-hidden="true">
         <UserIcon />
-        Войти
+        {t.auth.signIn}
       </span>
     );
   }
 
   if (status === "guest" || !user) {
     return compact ? (
-      <Link href="/login/" className={shell.toolBtn} aria-label="Войти" title="Войти">
+      <Link href="/login/" className={shell.toolBtn} aria-label={t.auth.signIn} title={t.auth.signIn}>
         <UserIcon />
       </Link>
     ) : (
       <Link href="/login/" className={styles.signIn}>
         <UserIcon />
-        Войти
+        {t.auth.signIn}
       </Link>
     );
   }
@@ -82,7 +84,7 @@ export default function AccountControl({ compact }: Props) {
       // Changes not yet on the server would be lost with the session.
       await flushBeforeLogout();
     } catch {
-      setError("Не все изменения успели сохраниться в облаке. Проверьте интернет и попробуйте выйти ещё раз.");
+      setError(t.auth.account.unsynced);
       setBusy(false);
       return;
     }
@@ -112,7 +114,7 @@ export default function AccountControl({ compact }: Props) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={`Аккаунт: ${user.email}`}
+        aria-label={t.auth.account.label(user.email)}
         title={user.email}
       >
         {/* The account's initial, not the guest's person icon: signed in and
@@ -122,11 +124,11 @@ export default function AccountControl({ compact }: Props) {
       {open ? (
         <div id={panelId} className={styles.panel}>
           <div className={styles.who}>
-            <span className={styles.whoLabel}>Вы вошли как</span>
+            <span className={styles.whoLabel}>{t.auth.account.signedInAs}</span>
             <span className={styles.email}>{user.email}</span>
           </div>
           <button type="button" className={styles.logout} onClick={onLogout} disabled={busy}>
-            {busy ? "Выходим…" : "Выйти"}
+            {busy ? t.auth.account.signingOut : t.auth.account.signOut}
           </button>
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
         </div>
@@ -136,5 +138,5 @@ export default function AccountControl({ compact }: Props) {
 }
 
 function initial(email: string): string {
-  return ([...email.trim()][0] ?? "?").toLocaleUpperCase("ru");
+  return ([...email.trim()][0] ?? "?").toLocaleUpperCase();
 }

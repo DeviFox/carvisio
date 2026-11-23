@@ -229,3 +229,7 @@ html { scrollbar-gutter: stable; }
 .iso .iso-line[data-tone="faint"] { stroke: var(--anatomy-faint); }
 .iso .iso-line[data-tone="lit"] { stroke: var(--anatomy-lit); }
 .iso .iso-dots circle { fill: var(--anatomy-hi); opacity: 0.35; }
+
+/* Set by the locale boot script while a stored language other than the
+   page's own is applied after hydration; never longer than 1.5 s. */
+html[data-locale-pending] body { visibility: hidden; }

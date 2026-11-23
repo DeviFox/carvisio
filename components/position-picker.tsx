@@ -2,10 +2,8 @@ import { useState } from "react";
 import s from "./position-picker.module.css";
 import { useGarage } from "@/lib/store";
 import { type ComponentPosition, positionLabel } from "@/lib/compute";
-import { AXLE_LABEL, SIDE_LABEL, type Axle, type Component, type Side } from "@/lib/types";
-
-const AXLES = Object.keys(AXLE_LABEL) as Axle[];
-const SIDES = Object.keys(SIDE_LABEL) as Side[];
+import { AXLES, SIDES, type Component } from "@/lib/types";
+import { useT } from "@/lib/i18n/react";
 
 type Props = {
   value: ComponentPosition;
@@ -15,20 +13,22 @@ type Props = {
 };
 
 // Two independent toggles: axle and side. Pressing the chosen one again clears it.
-export function PositionPicker({ value, onChange, label = "Расположение" }: Props) {
+export function PositionPicker({ value, onChange, label }: Props) {
+  const t = useT();
+  const shownLabel = label === undefined ? t.car.position : label;
   return (
-    <div className={s.picker} role="group" aria-label="Расположение детали">
-      {label ? <span className={s.label}>{label}</span> : null}
+    <div className={s.picker} role="group" aria-label={t.car.partPosition}>
+      {shownLabel ? <span className={s.label}>{shownLabel}</span> : null}
       <div className={s.groups}>
         <Group
           options={AXLES}
-          labels={AXLE_LABEL}
+          labels={t.common.axle}
           current={value.axle}
           onPick={(axle) => onChange({ ...value, axle })}
         />
         <Group
           options={SIDES}
-          labels={SIDE_LABEL}
+          labels={t.common.side}
           current={value.side}
           onPick={(side) => onChange({ ...value, side })}
         />

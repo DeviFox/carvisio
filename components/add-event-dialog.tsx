@@ -5,11 +5,13 @@ import s from "./dialog.module.css";
 import { CloseIcon } from "./icons";
 import { useConfirmClose, useModal } from "@/lib/use-modal";
 import { useGarage } from "@/lib/store";
-import { EVENT_TYPE_LABEL, componentLabel, findActiveInstalledPart, findComponentByName, formatKm } from "@/lib/compute";
+import { eventTypeLabel, componentLabel, findActiveInstalledPart, findComponentByName, formatKm } from "@/lib/compute";
 import { sortComponentsByName, systemForCategory, type ComponentPosition } from "@/lib/compute";
 import { groupInt, groupedChange, intText } from "@/lib/number-input";
 import { FLUIDS, POSITIONED_CATEGORIES } from "@/lib/types";
 import { PositionPicker } from "./position-picker";
+import { tr } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/react";
 import type { Condition, InstalledPart, MaintenanceEvent, MaintenanceType, Vehicle } from "@/lib/types";
 
 type Props = {
@@ -27,15 +29,14 @@ type Props = {
 };
 
 import {
-  COMPONENT_LABEL,
   CONDITIONS,
+  conditionLabel,
   CostFields,
   type Errors,
   FLUID,
   NEW,
   NotesField,
   ResourceFields,
-  SUBMIT_LABEL,
   TYPES,
   RepeatSummary,
   errorAttrs,
@@ -60,6 +61,7 @@ export default function AddEventDialog({
   replacing,
 }: Props) {
   const titleId = useId();
+  const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const typeRef = useRef<HTMLSelectElement>(null);
   const costRef = useRef<HTMLInputElement>(null);
@@ -129,7 +131,7 @@ export default function AddEventDialog({
 
   if (!open) return null;
 
-  const unit = "км";
+  const unit = t.common.kmUnit;
   const isNote = type === "observation";
   const isFluid = type === "fluid_service";
   const installs = installsPart(type);
@@ -190,40 +192,40 @@ export default function AddEventDialog({
   function validate(): Errors {
     const e: Errors = {};
     if (isNew) {
-      if (!name.trim()) e.name = "Укажите название.";
+      if (!name.trim()) e.name = t.records.err.name;
       else if (findComponentByName(vehicleComponents, name, systemId, newPosition)) {
-        e.name = "Такой компонент уже есть в этой системе.";
+        e.name = t.records.err.duplicateComponent;
       }
-      if (!systemId) e.system = "Выберите систему.";
+      if (!systemId) e.system = t.records.err.system;
     } else if (pickedFluid && !fluidSystem) {
-      e.component = "У автомобиля нет систем, компонент некуда добавить.";
+      e.component = t.records.err.noSystems;
     } else if (!isNote && !selected && !pickedFluid) {
-      e.component = isFluid ? "Выберите жидкость." : "Выберите компонент.";
+      e.component = isFluid ? t.records.err.fluid : t.records.err.component;
     }
-    if (!date) e.date = "Укажите дату.";
-    else if (date > today()) e.date = "Дата не может быть в будущем.";
+    if (!date) e.date = t.records.err.date;
+    else if (date > today()) e.date = t.records.err.dateFuture;
     if (mileage.trim()) {
       const n = toNumber(mileage);
       if (!Number.isFinite(n) || n < 0) {
-        e.mileage = "Введите пробег цифрами.";
+        e.mileage = t.common.mileageDigits;
       } else if (vehicle.currentMileageKm !== undefined && n > vehicle.currentMileageKm) {
-        e.mileage = `Больше текущего пробега (${formatKm(vehicle.currentMileageKm)}). Сначала обновите пробег автомобиля.`;
+        e.mileage = t.records.err.mileageAboveUpdate(formatKm(vehicle.currentMileageKm));
       }
     } else if (!isNote) {
-      e.mileage = "Укажите пробег.";
+      e.mileage = t.records.err.mileage;
     }
     if (cost.trim()) {
       const n = toNumber(cost);
-      if (!Number.isFinite(n) || n < 0) e.cost = "Стоимость не может быть отрицательной.";
+      if (!Number.isFinite(n) || n < 0) e.cost = t.records.err.costNegative;
     }
     if (tracking && lifeKm.trim()) {
       const n = toNumber(lifeKm);
-      if (!Number.isFinite(n) || n <= 0) e.lifeKm = "Срок службы должен быть больше нуля.";
+      if (!Number.isFinite(n) || n <= 0) e.lifeKm = t.records.err.lifePositive;
     }
     if (tracking && lifeDays.trim() && !(toNumber(lifeDays) > 0)) {
-      e.lifeDays = "Срок службы должен быть больше нуля.";
+      e.lifeDays = t.records.err.lifePositive;
     }
-    if (isNote && !notes.trim()) e.notes = "Напишите текст заметки.";
+    if (isNote && !notes.trim()) e.notes = t.records.err.noteText;
     return e;
   }
 
@@ -252,7 +254,7 @@ export default function AddEventDialog({
       newComponent: isNew
         ? { name: name.trim(), systemId, ...newPosition }
         : pickedFluid && fluidSystem
-          ? { name: pickedFluid.name, systemId: fluidSystem.id, fluid: pickedFluid.key }
+          ? { name: t.common.fluidName[pickedFluid.key], systemId: fluidSystem.id, fluid: pickedFluid.key }
           : undefined,
       costMinorUnits: costMinor,
       currency: costMinor !== undefined ? currency : undefined,
@@ -293,20 +295,20 @@ export default function AddEventDialog({
           <div className={s.titleGroup}>
             <h2 className={s.title} id={titleId}>
               {replacing
-                ? "Изменить запись"
+                ? t.records.editTitle
                 : repeat && selected
-                  ? `Замена: ${componentLabel(selected)}`
-                  : "Добавить запись"}
+                  ? t.records.repeatTitle(componentLabel(selected))
+                  : t.records.addTitle}
             </h2>
             <p className={s.subtitle} id={`${titleId}-sub`}>
               {replacing
                 ? replacedLine(replacing, installs, installedParts)
                 : repeat && template
-                  ? `Прошлая замена — ${formatLongDate(template.date)}`
-                  : "Что сделали с автомобилем?"}
+                  ? t.records.repeatSubtitle(formatLongDate(template.date))
+                  : t.records.addSubtitle}
             </p>
           </div>
-          <button type="button" className={s.close} onClick={requestClose} aria-label="Закрыть">
+          <button type="button" className={s.close} onClick={requestClose} aria-label={t.common.close}>
             <CloseIcon />
           </button>
         </div>
@@ -317,7 +319,7 @@ export default function AddEventDialog({
           ) : (
             <>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ar-type">Что сделали?</label>
+              <label className={s.label} htmlFor="ar-type">{t.records.whatWasDone}</label>
               <select
                 id="ar-type"
                 ref={typeRef}
@@ -325,16 +327,16 @@ export default function AddEventDialog({
                 value={type}
                 onChange={(e) => chooseType(e.target.value as MaintenanceType)}
               >
-                {TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {TYPES.map((v) => (
+                  <option key={v} value={v}>{t.common.eventType[v]}</option>
                 ))}
               </select>
             </div>
 
             <div className={s.field}>
               <label className={s.label} htmlFor="ar-component">
-                {COMPONENT_LABEL[type]}
-                {isNote ? <span className={s.optional}>опционально</span> : null}
+                {t.records.componentQuestion[type]}
+                {isNote ? <span className={s.optional}>{t.common.optional}</span> : null}
               </label>
               <select
                 id="ar-component"
@@ -344,7 +346,7 @@ export default function AddEventDialog({
                 onChange={(e) => chooseComponent(e.target.value)}
               >
                 <option value="">
-                  {isNote ? "Без компонента" : isFluid ? "Выберите жидкость" : "Выберите компонент"}
+                  {isNote ? t.records.noComponent : isFluid ? t.records.chooseFluid : t.records.chooseComponent}
                 </option>
                 {isFluid
                   ? FLUIDS.map((f) => {
@@ -352,7 +354,7 @@ export default function AddEventDialog({
                       return c ? (
                         <option key={c.id} value={c.id}>{componentLabel(c)}</option>
                       ) : (
-                        <option key={f.key} value={FLUID + f.key}>{f.name}</option>
+                        <option key={f.key} value={FLUID + f.key}>{t.common.fluidName[f.key]}</option>
                       );
                     })
                   : groups.map((g) => (
@@ -363,14 +365,14 @@ export default function AddEventDialog({
                       </optgroup>
                     ))}
                 {!isFluid && missingFluids.length > 0 ? (
-                  <optgroup label="Жидкости">
+                  <optgroup label={t.records.fluids}>
                     {missingFluids.map((f) => (
-                      <option key={f.key} value={FLUID + f.key}>{f.name}</option>
+                      <option key={f.key} value={FLUID + f.key}>{t.common.fluidName[f.key]}</option>
                     ))}
                   </optgroup>
                 ) : null}
                 {!isNote && !isFluid && vehicleSystems.length > 0 ? (
-                  <option value={NEW}>+ Новый компонент</option>
+                  <option value={NEW}>{t.records.newComponent}</option>
                 ) : null}
               </select>
               {errors.component && <span className={s.error} id="ar-component-error">{errors.component}</span>}
@@ -381,22 +383,22 @@ export default function AddEventDialog({
           {isNew ? (
             <div className={s.row}>
               <div className={s.field}>
-                <label className={s.label} htmlFor="ar-name">Название</label>
+                <label className={s.label} htmlFor="ar-name">{t.records.name}</label>
                 <input
                   id="ar-name"
                   className={`${s.input} ${errors.name ? s.invalid : ""}`}
                   {...errorAttrs("ar-name", errors.name)}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Например, моторное масло"
+                  placeholder={t.records.namePlaceholder}
                   autoComplete="off"
                 />
                 {errors.name && <span className={s.error} id="ar-name-error">{errors.name}</span>}
                 {duplicate ? (
                   <span className={s.hint}>
-                    Уже есть
+                    {t.records.alreadyExists}
                     {duplicate.systemId !== systemId
-                      ? ` в «${vehicleSystems.find((x) => x.id === duplicate.systemId)?.name ?? ""}»`
+                      ? t.records.alreadyExistsIn(vehicleSystems.find((x) => x.id === duplicate.systemId)?.name ?? "")
                       : ""}
                     .{" "}
                     <button
@@ -404,13 +406,13 @@ export default function AddEventDialog({
                       className={s.linkBtn}
                       onClick={() => chooseComponent(duplicate.id)}
                     >
-                      Выбрать его
+                      {t.records.pickIt}
                     </button>
                   </span>
                 ) : null}
               </div>
               <div className={s.field}>
-                <label className={s.label} htmlFor="ar-system">Система автомобиля</label>
+                <label className={s.label} htmlFor="ar-system">{t.records.vehicleSystem}</label>
                 <select
                   id="ar-system"
                   className={`${s.select} ${errors.system ? s.invalid : ""}`}
@@ -430,7 +432,7 @@ export default function AddEventDialog({
 
           <div className={s.row}>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ar-date">Дата</label>
+              <label className={s.label} htmlFor="ar-date">{t.records.date}</label>
               <input
                 id="ar-date"
                 type="date"
@@ -443,13 +445,13 @@ export default function AddEventDialog({
               {errors.date ? (
                 <span className={s.error} id="ar-date-error">{errors.date}</span>
               ) : !isNote && hasSameDayRecord(events, selected?.id, type, date) ? (
-                <span className={s.warning}>Такая запись на эту дату уже есть</span>
+                <span className={s.warning}>{t.records.sameDayRecord}</span>
               ) : null}
             </div>
             <div className={s.field}>
               <label className={s.label} htmlFor="ar-mileage">
-                Пробег
-                {isNote ? <span className={s.optional}>опционально</span> : null}
+                {t.records.mileage}
+                {isNote ? <span className={s.optional}>{t.common.optional}</span> : null}
               </label>
               <div className={s.suffixInput}>
                 <input
@@ -471,7 +473,7 @@ export default function AddEventDialog({
           {type === "inspection" ? (
             <div className={s.field}>
               <label className={s.label} htmlFor="ar-condition">
-                Результат <span className={s.optional}>опционально</span>
+                {t.records.result} <span className={s.optional}>{t.common.optional}</span>
               </label>
               <select
                 id="ar-condition"
@@ -480,7 +482,7 @@ export default function AddEventDialog({
                 onChange={(e) => setCondition(e.target.value as Condition | "")}
               >
                 {CONDITIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                  <option key={c} value={c}>{conditionLabel(c)}</option>
                 ))}
               </select>
             </div>
@@ -521,10 +523,10 @@ export default function AddEventDialog({
 
           <div className={s.footer}>
             <button type="button" className={s.ghostBtn} onClick={requestClose}>
-              Отмена
+              {t.common.cancel}
             </button>
             <button type="submit" className={s.primary} disabled={submitting}>
-              {SUBMIT_LABEL[type]}
+              {t.records.submit[type]}
             </button>
           </div>
         </form>
@@ -536,7 +538,7 @@ export default function AddEventDialog({
 // What saving does to the record being changed. When the new record no longer
 // installs a part, the old one's effect on the parts is spelled out, as on delete.
 function replacedLine(event: MaintenanceEvent, installs: boolean, parts: InstalledPart[]): string {
-  const base = `Вместо записи «${EVENT_TYPE_LABEL[event.type]}» от ${formatLongDate(event.date)} сохранится эта.`;
+  const base = tr().records.replacedLine(eventTypeLabel(event.type), formatLongDate(event.date));
   const effect = installs ? null : deleteEffect(event, parts);
   return effect ? `${base} ${effect}` : base;
 }

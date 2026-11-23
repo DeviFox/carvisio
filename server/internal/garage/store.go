@@ -86,13 +86,13 @@ func collect[T any](ctx context.Context, tx pgx.Tx, sql, userID string, scan fun
 
 func loadVehicles(ctx context.Context, tx pgx.Tx, userID string) ([]Vehicle, error) {
 	return collect(ctx, tx, `
-		SELECT id, name, make, model, year, fuel_type, engine, body_type,
+		SELECT id, name, make, model, year, fuel_type, engine, body_type, vin,
 		       current_mileage_km, units, created_at, updated_at
 		FROM vehicles WHERE user_id = $1
 		ORDER BY created_at, id`, userID,
 		func(r pgx.Rows, x *Vehicle) error {
 			var created, updated time.Time
-			err := r.Scan(&x.ID, &x.Name, &x.Make, &x.Model, &x.Year, &x.FuelType, &x.Engine, &x.BodyType,
+			err := r.Scan(&x.ID, &x.Name, &x.Make, &x.Model, &x.Year, &x.FuelType, &x.Engine, &x.BodyType, &x.VIN,
 				&x.CurrentMileageKm, &x.Units, &created, &updated)
 			x.CreatedAt, x.UpdatedAt = Instant(created), Instant(updated)
 			return err
@@ -207,10 +207,10 @@ func (s *Store) Apply(ctx context.Context, userID string, c Changes) error {
 }
 
 func queueUpserts(b *pgx.Batch, userID string, g *Garage, merge bool) {
-	vehicles := upsertSQL(merge, "vehicles", "name", "make", "model", "year", "fuel_type", "engine", "body_type",
+	vehicles := upsertSQL(merge, "vehicles", "name", "make", "model", "year", "fuel_type", "engine", "body_type", "vin",
 		"current_mileage_km", "units", "created_at", "updated_at")
 	for _, x := range g.Vehicles {
-		b.Queue(vehicles, userID, x.ID, x.Name, x.Make, x.Model, x.Year, x.FuelType, x.Engine, x.BodyType,
+		b.Queue(vehicles, userID, x.ID, x.Name, x.Make, x.Model, x.Year, x.FuelType, x.Engine, x.BodyType, x.VIN,
 			x.CurrentMileageKm, x.Units, time.Time(x.CreatedAt), time.Time(x.UpdatedAt))
 	}
 

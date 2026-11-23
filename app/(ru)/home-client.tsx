@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import styles from "./page.module.css";
+import styles from "@/app/page.module.css";
 import AddCarDialog from "@/components/add-car-dialog";
 import AppBar, { VersionTag } from "@/components/app-bar";
 import AccountControl from "@/components/account-control";
@@ -13,12 +13,16 @@ import { HelpIcon, PlusIcon } from "@/components/icons";
 import { useGarage } from "@/lib/store";
 import { useSync } from "@/lib/sync";
 import { useHydrated } from "@/lib/use-hydrated";
-import { formatKm, vehicleHealth } from "@/lib/compute";
+import { formatKm, fuelLabel, vehicleHealth } from "@/lib/compute";
+import { useT } from "@/lib/i18n/react";
+import { tr } from "@/lib/i18n";
+import { SEED_SYSTEMS } from "@/lib/types";
 import StatusPill from "@/components/status-pill";
-import { SYSTEM_STATUS_TEXT } from "@/components/system-list";
+import { systemStatusWord } from "@/components/system-list";
 
 export default function HomeClient() {
   const router = useRouter();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const hydrated = useHydrated();
   // The story about how carvisio works, until the owner dismisses it.
@@ -59,14 +63,8 @@ export default function HomeClient() {
         currentMileageKm: 50000,
         units: "km",
       });
-      g.addSystem({ vehicleId: v.id, name: "Двигатель", category: "engine" });
-      g.addSystem({ vehicleId: v.id, name: "Охлаждение", category: "cooling" });
-      g.addSystem({ vehicleId: v.id, name: "Трансмиссия", category: "transmission" });
-      g.addSystem({ vehicleId: v.id, name: "Подвеска", category: "suspension" });
-      g.addSystem({ vehicleId: v.id, name: "Тормоза", category: "brakes" });
-      g.addSystem({ vehicleId: v.id, name: "Шины", category: "tires" });
-      g.addSystem({ vehicleId: v.id, name: "Электрика", category: "electrical" });
-      g.addSystem({ vehicleId: v.id, name: "Прочее", category: "other" });
+      const names = tr().common.systemName;
+      for (const category of SEED_SYSTEMS) g.addSystem({ vehicleId: v.id, name: names[category], category });
       router.replace(`/car?id=${encodeURIComponent(v.id)}`);
       return;
     }
@@ -86,13 +84,13 @@ export default function HomeClient() {
         });
         const sys = g.addSystem({
           vehicleId: v.id,
-          name: "Двигатель",
+          name: tr().common.systemName.engine,
           category: "engine",
         });
         const comp = g.addComponent({
           vehicleId: v.id,
           systemId: sys.id,
-          name: "Масло двигателя",
+          name: tr().garage.demo.oil,
           kind: "consumable",
         });
         // A believable first look: the oil was changed five months and
@@ -105,7 +103,7 @@ export default function HomeClient() {
           installedAtMileageKm: 169930,
           installedAtDate: changedOn,
           expectedLifeKm: 10000,
-          notes: "5W-30, фильтр заменён вместе",
+          notes: tr().garage.demo.note,
         });
         g.addEvent({
           vehicleId: v.id,
@@ -116,7 +114,7 @@ export default function HomeClient() {
           installedPartId: part.id,
           costMinorUnits: 650000,
           currency: "RUB",
-          notes: "5W-30, фильтр заменён вместе",
+          notes: tr().garage.demo.note,
         });
         router.replace(`/car?id=${encodeURIComponent(v.id)}`);
       }
@@ -133,7 +131,7 @@ export default function HomeClient() {
             <div className={styles.brandName}>carvisio</div>
           </div>
           <div className={styles.topActions}>
-            <button type="button" className={styles.toolBtn} onClick={() => setShowIntro(true)} aria-label="Как это работает">
+            <button type="button" className={styles.toolBtn} onClick={() => setShowIntro(true)} aria-label={t.garage.howItWorks}>
               <HelpIcon />
             </button>
             <ThemeToggle />
@@ -142,10 +140,10 @@ export default function HomeClient() {
               type="button"
               className={styles.primaryBtn}
               onClick={() => setOpen(true)}
-              aria-label="Добавить автомобиль"
+              aria-label={t.garage.addCar}
             >
               <PlusIcon />
-              Добавить
+              {t.garage.addShort}
             </button>
           </div>
         </header>
@@ -154,7 +152,7 @@ export default function HomeClient() {
         <main className={styles.main}>
           <header className={styles.header}>
             <div>
-              <h1 className={styles.h1}>Мой гараж</h1>
+              <h1 className={styles.h1}>{t.garage.title}</h1>
               <AuthNotice />
             </div>
           </header>
@@ -162,7 +160,7 @@ export default function HomeClient() {
 
           <section aria-labelledby="garage-grid-label">
             <h2 id="garage-grid-label" className="sr-only">
-              Автомобили в гараже
+              {t.garage.carsInGarage}
             </h2>
             <div className={styles.grid}>
               {hydrated ? (
@@ -172,14 +170,14 @@ export default function HomeClient() {
                     ref={addSlotRef}
                     className={styles.emptySlot}
                     onClick={() => setOpen(true)}
-                    aria-label="Добавить первый автомобиль"
+                    aria-label={t.garage.addFirstCar}
                   >
                     <div className={styles.emptyIcon} aria-hidden="true">
                       <PlusIcon />
                     </div>
-                    <div className={styles.emptyTitle}>Добавить автомобиль</div>
+                    <div className={styles.emptyTitle}>{t.garage.addCar}</div>
                     <div className={styles.emptyDesc}>
-                      Марка, модель, год, пробег — остальное появится по мере внесения работ.
+                      {t.garage.emptyDesc}
                     </div>
                   </button>
                 ) : (
@@ -203,20 +201,20 @@ export default function HomeClient() {
                             {v.currentMileageKm !== undefined ? (
                               <div className={`${styles.carMileage} numeric mono`}>{formatKm(v.currentMileageKm)}</div>
                             ) : (
-                              <div className={styles.carMileageMissing}>Пробег не указан</div>
+                              <div className={styles.carMileageMissing}>{t.garage.mileageMissing}</div>
                             )}
                           </div>
                           {/* The car's state, not its bookkeeping: worst status, then what it is about. */}
                           <div className={styles.carCardFooter}>
-                            <StatusPill label={health.label} text={health.text ?? SYSTEM_STATUS_TEXT[health.label]} size="sm" />
+                            <StatusPill label={health.label} text={health.text ?? systemStatusWord(health.label)} size="sm" />
                             <span className={styles.carHealth}>
                               {health.flagged.length > 0
                                 ? health.flagged.join(", ")
                                 : health.known > 0
-                                  ? `Отслеживается ${health.known} ${plural(health.known, "деталь", "детали", "деталей")}`
+                                  ? t.garage.tracking(health.known)
                                   : health.total > 0
-                                    ? "Срок службы деталей не задан"
-                                    : "Добавьте первую замену"}
+                                    ? t.garage.noLifeSet
+                                    : t.garage.addFirstReplacement}
                             </span>
                           </div>
                         </button>
@@ -227,12 +225,12 @@ export default function HomeClient() {
                       ref={addSlotRef}
                       className={styles.emptySlot}
                       onClick={() => setOpen(true)}
-                      aria-label="Добавить ещё автомобиль"
+                      aria-label={t.garage.addAnotherCar}
                     >
                       <div className={styles.emptyIcon} aria-hidden="true">
                         <PlusIcon />
                       </div>
-                      <div className={styles.emptyTitle}>Добавить автомобиль</div>
+                      <div className={styles.emptyTitle}>{t.garage.addCar}</div>
                     </button>
                   </>
                 )
@@ -245,16 +243,16 @@ export default function HomeClient() {
           <div className={styles.statusLine}>
             <span className={styles.statusDot} aria-hidden="true" />
             <strong>{hydrated ? vehicles.length : 0}</strong>
-            {plural(vehicles.length, "автомобиль", "автомобиля", "автомобилей")}
+            {t.garage.cars(vehicles.length)}
             <span className={styles.sep}>·</span>
             <span className={styles.statusNote}>
               {!hydrated || !inAccount
-                ? "Машины хранятся на этом устройстве. Войдите, чтобы получить доступ к гаражу на всех устройствах."
+                ? t.garage.storedLocally
                 : refused > 0
-                  ? "Часть изменений не сохранена. Они останутся на этом устройстве, попробуем отправить снова при следующем открытии."
+                  ? t.garage.refused
                   : offline
-                  ? "Нет связи с сервером. Изменения сохранены локально и будут синхронизированы, когда связь появится."
-                  : "Гараж синхронизирован."}
+                  ? t.garage.offline
+                  : t.garage.synced}
             </span>
           </div>
         </main>
@@ -278,24 +276,4 @@ export default function HomeClient() {
       />
     </>
   );
-}
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n) % 100;
-  const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return many;
-  if (n1 > 1 && n1 < 5) return few;
-  if (n1 === 1) return one;
-  return many;
-}
-
-function fuelLabel(fuel: string): string {
-  switch (fuel) {
-    case "gasoline": return "бензин";
-    case "diesel": return "дизель";
-    case "hybrid": return "гибрид";
-    case "electric": return "электро";
-    case "lpg": return "газ";
-    default: return fuel;
-  }
 }

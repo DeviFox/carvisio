@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyboardEvent, RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { tr } from "./i18n";
 
 // Open modals, bottom to top. A dialog can open over the component sheet, so
 // Esc and scroll locking belong to the topmost one only.
@@ -31,7 +32,7 @@ export function useConfirmClose(values: unknown[], onClose: () => void): () => v
   const snapshot = JSON.stringify(values);
   const initial = useRef(snapshot);
   return useCallback(() => {
-    if (snapshot === initial.current || window.confirm("Закрыть без сохранения? Введённое пропадёт.")) {
+    if (snapshot === initial.current || window.confirm(tr().common.discardConfirm)) {
       onClose();
     }
   }, [snapshot, onClose]);

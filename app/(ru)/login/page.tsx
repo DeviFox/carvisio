@@ -6,27 +6,21 @@ import { useRouter } from "next/navigation";
 import AuthShell, { EmailField, FormError, PasswordField, SubmitButton } from "@/components/auth-shell";
 import styles from "@/components/auth.module.css";
 import { ApiError, api } from "@/lib/api";
-import {
-  EMAIL_FORMAT_ERROR,
-  MIN_PASSWORD,
-  commonAuthError,
-  focusOnDesktop,
-  looksLikeEmail,
-  passwordLengthError,
-  useAuth,
-} from "@/lib/auth";
+import { emailFormatError, commonAuthError, focusOnDesktop, looksLikeEmail, useAuth } from "@/lib/auth";
+import { useT } from "@/lib/i18n/react";
 
 type Errors = { email?: string; password?: string };
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
+  const t = useT();
   const status = useAuth((s) => s.status);
   const signedIn = useAuth((s) => s.signedIn);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
-  const [formError, setFormError] = useState<React.ReactNode>("");
+  const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -36,18 +30,20 @@ export default function RegisterPage() {
     focusOnDesktop(emailRef.current);
   }, []);
 
+  // Already signed in (opened from a bookmark): nothing to do here.
   useEffect(() => {
     if (status === "user" && !busy) router.replace("/");
   }, [status, busy, router]);
 
+  // A field's message goes away as soon as the owner starts fixing it.
   const clear = (field: keyof Errors) => setErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     const next: Errors = {};
-    if (!looksLikeEmail(email)) next.email = EMAIL_FORMAT_ERROR;
-    next.password = passwordLengthError(password);
+    if (!looksLikeEmail(email)) next.email = emailFormatError();
+    if (!password) next.password = t.auth.login.enterPassword;
     setErrors(next);
     setFormError("");
     if (next.email) return emailRef.current?.focus();
@@ -55,31 +51,26 @@ export default function RegisterPage() {
 
     setBusy(true);
     try {
-      const user = await api.register(email.trim(), password);
-      signedIn(user, `Аккаунт создан: ${user.email}.`);
+      const user = await api.login(email.trim(), password);
+      signedIn(user, t.auth.login.signedIn(user.email));
       router.replace("/");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setFormError(
-          <>
-            Эта почта уже зарегистрирована. <Link href="/login/" className={styles.link}>Войти</Link> или{" "}
-            <Link href="/forgot-password/" className={styles.link}>восстановить пароль</Link>.
-          </>,
-        );
-      } else {
-        setFormError(commonAuthError(err));
-      }
+      setFormError(
+        err instanceof ApiError && err.status === 401
+          ? t.auth.login.wrong
+          : commonAuthError(err),
+      );
       setBusy(false);
     }
   }
 
+  // Signed in and on the way to the garage: don't flash the form.
   if (status === "user" && !busy) return null;
 
   return (
     <AuthShell
-      title="Регистрация"
-      subtitle="Ваш гараж будет храниться в облаке. Машины из этого устройства перенесутся в него."
-      aside={<>Уже есть аккаунт? <Link href="/login/" className={styles.link}>Войти</Link></>}
+      title={t.auth.login.title}
+      aside={<>{t.auth.login.noAccount} <Link href="/register/" className={styles.link}>{t.auth.login.register}</Link></>}
     >
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <FormError>{formError}</FormError>
@@ -91,14 +82,14 @@ export default function RegisterPage() {
         />
         <PasswordField
           ref={passwordRef}
-          label="Пароль"
-          autoComplete="new-password"
+          label={t.auth.password}
+          autoComplete="current-password"
           value={password}
           onChange={(v) => { setPassword(v); clear("password"); }}
           error={errors.password}
-          hint={`Не менее ${MIN_PASSWORD} символов`}
+          labelAside={<Link href="/forgot-password/" className={styles.labelLink}>{t.auth.login.forgot}</Link>}
         />
-        <SubmitButton busy={busy} busyText="Создаём аккаунт…">Создать аккаунт</SubmitButton>
+        <SubmitButton busy={busy} busyText={t.auth.login.busy}>{t.auth.signIn}</SubmitButton>
       </form>
     </AuthShell>
   );

@@ -6,6 +6,7 @@ import StatusPill from "./status-pill";
 import { PositionBadge } from "./position-picker";
 import { resourceSummary } from "@/lib/compute";
 import type { ComponentRow } from "./system-list";
+import { useT } from "@/lib/i18n/react";
 
 const VISIBLE = 5;
 
@@ -16,17 +17,18 @@ type Props = {
 
 // Names what the old banner only counted: the parts due or overdue, worst first.
 export default function AttentionList({ rows, onSelect }: Props) {
+  const t = useT();
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? rows : rows.slice(0, VISIBLE);
 
   return (
     <section className={s.attention} aria-labelledby="attention-title">
       <h2 id="attention-title" className={s.attentionTitle}>
-        Требует внимания
+        {t.car.needsAttention}
         <span className={`${s.attentionCount} mono numeric`}>{rows.length}</span>
       </h2>
       {rows.length === 0 ? (
-        <p className={s.attentionEmpty}>Всё, что отслеживается, в норме.</p>
+        <p className={s.attentionEmpty}>{t.car.allGood}</p>
       ) : (
         <ul className={s.attentionList}>
           {shown.map((row) => {
@@ -58,7 +60,7 @@ export default function AttentionList({ rows, onSelect }: Props) {
       )}
       {rows.length > VISIBLE ? (
         <button type="button" className={s.addLink} onClick={() => setShowAll((v) => !v)}>
-          {showAll ? "Свернуть" : `Показать ещё ${rows.length - VISIBLE}`}
+          {showAll ? t.car.collapse : t.car.showMore(rows.length - VISIBLE)}
         </button>
       ) : null}
     </section>

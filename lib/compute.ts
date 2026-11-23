@@ -9,7 +9,7 @@ import type {
   Vehicle,
   VehicleSystem,
 } from "./types";
-import { AXLE_LABEL, SIDE_LABEL } from "./types";
+import { formatDate, formatNumber, getLocale, lowerCase, tr } from "./i18n";
 
 export type ResourceSignal =
   | { kind: "unknown"; reason: "no_install_mileage" | "no_expected_life" | "no_part" | "no_current_mileage" }
@@ -112,11 +112,11 @@ export type ComponentStatus = {
 export function statusFromCondition(condition: Condition): ComponentStatus | null {
   switch (condition) {
     case "good":
-      return { label: "ok", text: "В норме", reason: "inspected" };
+      return { label: "ok", text: tr().common.status.ok, reason: "inspected" };
     case "worn":
-      return { label: "attention", text: "Требует внимания", reason: "inspected" };
+      return { label: "attention", text: tr().common.status.attention, reason: "inspected" };
     case "critical":
-      return { label: "critical", text: "Критично", reason: "inspected" };
+      return { label: "critical", text: tr().common.status.critical, reason: "inspected" };
     case "unknown":
       return null;
   }
@@ -133,17 +133,18 @@ export function componentStatus(
 
   if (resource.kind === "unknown") {
     // Not set is the owner's choice, not missing data: say which it is.
-    const text = resource.reason === "no_expected_life" ? "Срок не задан" : "Нет данных";
+    const { status } = tr().common;
+    const text = resource.reason === "no_expected_life" ? status.lifeNotSet : status.noData;
     return { label: "unknown", text, reason: "no_data" };
   }
 
   if (resource.overdue) {
-    return { label: "critical", text: "Просрочено", reason: "computed" };
+    return { label: "critical", text: tr().common.status.overdue, reason: "computed" };
   }
   if (resource.ratio < 0.2) {
-    return { label: "attention", text: "Скоро замена", reason: "computed" };
+    return { label: "attention", text: tr().common.status.replaceSoon, reason: "computed" };
   }
-  return { label: "ok", text: "В норме", reason: "computed" };
+  return { label: "ok", text: tr().common.status.ok, reason: "computed" };
 }
 
 export type StatusLabel = ComponentStatus["label"];
@@ -205,10 +206,11 @@ export function vehicleHealth(
 }
 
 export function formatDuration(days: number): string {
-  if (days < 60) return `${days} дн.`;
+  const t = tr().common;
+  if (days < 60) return t.days(days);
   const months = Math.round(days / 30.44);
-  if (months < 24) return `${months} мес.`;
-  return `${(Math.round((days / 365.25) * 10) / 10).toLocaleString("ru-RU")} г.`;
+  if (months < 24) return t.months(months);
+  return t.years(formatNumber(Math.round((days / 365.25) * 10) / 10));
 }
 
 // One honest line about the dimension (mileage or time) that runs out first.
@@ -216,35 +218,33 @@ export function resourceSummary(
   resource: ResourceSignal,
 ): string | null {
   if (resource.kind !== "known") return null;
+  const t = tr().common;
   // Past the life: say by how much (the pill already says "Просрочено").
   if (resource.overKm !== undefined && resource.overKm > 0) {
-    return `+${formatKm(resource.overKm)} сверх срока`;
+    return t.overLife(formatKm(resource.overKm));
   }
   if (resource.overDays !== undefined && resource.overDays > 0) {
-    return `+${formatDuration(resource.overDays)} сверх срока`;
+    return t.overLife(formatDuration(resource.overDays));
   }
-  if (resource.overKm === 0 || resource.overDays === 0) return "пора менять";
+  if (resource.overKm === 0 || resource.overDays === 0) return t.dueNow;
   const share = (left?: number, used?: number) =>
     left !== undefined && used !== undefined ? left / (left + used) : Infinity;
   const kmShare = share(resource.remainingKm, resource.drivenKm);
   const daysShare = share(resource.remainingDays, resource.elapsedDays);
   return kmShare <= daysShare
-    ? `ещё ${formatKm(resource.remainingKm!)}`
-    : `ещё ${formatDuration(resource.remainingDays!)}`;
+    ? t.left(formatKm(resource.remainingKm!))
+    : t.left(formatDuration(resource.remainingDays!));
 }
 
 // "сегодня", "вчера", "3 дня назад", "2 мес. назад" — for how fresh a reading is.
 export function formatAgo(iso: string, nowDate: Date = new Date()): string {
   const day = 1000 * 60 * 60 * 24;
   const days = Math.max(0, Math.floor((nowDate.getTime() - new Date(iso).getTime()) / day));
-  if (days === 0) return "сегодня";
-  if (days === 1) return "вчера";
-  if (days < 60) {
-    const n1 = days % 10, n100 = days % 100;
-    const word = n100 > 10 && n100 < 20 ? "дней" : n1 === 1 ? "день" : n1 > 1 && n1 < 5 ? "дня" : "дней";
-    return `${days} ${word} назад`;
-  }
-  return `${formatDuration(days)} назад`;
+  const t = tr().common;
+  if (days === 0) return t.today;
+  if (days === 1) return t.yesterday;
+  if (days < 60) return t.daysAgo(days);
+  return t.ago(formatDuration(days));
 }
 
 export function findActiveInstalledPart(
@@ -291,13 +291,14 @@ export type ComponentPosition = Pick<Component, "axle" | "side">;
 
 // "Перед · Лев", or "" when the position is not set.
 export function positionLabel(c: ComponentPosition): string {
-  return [c.axle && AXLE_LABEL[c.axle], c.side && SIDE_LABEL[c.side]].filter(Boolean).join(" · ");
+  const t = tr().common;
+  return [c.axle && t.axle[c.axle], c.side && t.side[c.side]].filter(Boolean).join(" · ");
 }
 
 // A name that tells same-named components apart, for selects and titles.
 export function componentLabel(c: Component): string {
   const pos = positionLabel(c);
-  return pos ? `${c.name} (${pos.toLocaleLowerCase("ru")})` : c.name;
+  return pos ? `${c.name} (${lowerCase(pos)})` : c.name;
 }
 
 // Exact category first, then "Прочее", then whatever the car has.
@@ -322,7 +323,7 @@ export function latestInspectionFor(
 }
 
 export function formatKm(n: number): string {
-  return `${n.toLocaleString("ru-RU")} км`;
+  return tr().common.km(formatNumber(n));
 }
 
 export function formatRatioPercent(ratio: number): string {
@@ -332,18 +333,13 @@ export function formatRatioPercent(ratio: number): string {
 const CURRENCY_SIGN: Record<string, string> = { RUB: "₽", USD: "$", EUR: "€", KZT: "₸", UAH: "₴", BYN: "Br" };
 
 export function formatMoney(minorUnits: number, currency?: string): string {
-  const amount = (minorUnits / 100).toLocaleString("ru-RU");
+  const amount = formatNumber(minorUnits / 100);
   return currency ? `${amount} ${CURRENCY_SIGN[currency] ?? currency}` : amount;
 }
 
-export const EVENT_TYPE_LABEL: Record<MaintenanceType, string> = {
-  replacement: "Замена",
-  purchase: "Покупка",
-  inspection: "Осмотр",
-  repair: "Ремонт",
-  fluid_service: "Долив жидкости",
-  observation: "Заметка",
-};
+export function eventTypeLabel(type: MaintenanceType): string {
+  return tr().common.eventType[type];
+}
 
 export function sortEventsByDateDesc(events: MaintenanceEvent[]): MaintenanceEvent[] {
   return [...events].sort((a, b) => b.date.localeCompare(a.date));
@@ -356,7 +352,7 @@ const SIDE_ORDER = { left: 1, right: 2 } as const;
 export function sortComponentsByName(components: Component[]): Component[] {
   return [...components].sort(
     (a, b) =>
-      a.name.localeCompare(b.name, "ru") ||
+      a.name.localeCompare(b.name, getLocale()) ||
       (a.axle ? AXLE_ORDER[a.axle] : 0) - (b.axle ? AXLE_ORDER[b.axle] : 0) ||
       (a.side ? SIDE_ORDER[a.side] : 0) - (b.side ? SIDE_ORDER[b.side] : 0),
   );
@@ -367,22 +363,19 @@ export function assertNewerMileage(
   lastConfirmedMileageKm: number | undefined,
 ): string | null {
   if (!Number.isFinite(nextMileageKm) || nextMileageKm < 0) {
-    return "Введите пробег цифрами.";
+    return tr().common.mileageDigits;
   }
   if (lastConfirmedMileageKm !== undefined && nextMileageKm < lastConfirmedMileageKm) {
-    return `Новый пробег меньше текущего (${formatKm(lastConfirmedMileageKm)}). Пробег не может уменьшаться.`;
+    return tr().common.mileageDecrease(formatKm(lastConfirmedMileageKm));
   }
   return null;
 }
 
-// "12.10.2026" from a stored date. Event dates are calendar days
-// ("2026-10-12"); new Date() would read them as UTC midnight and show the
-// previous day west of Greenwich, so the day is taken from the string.
+// "12.10.2026" (ru) or "12/10/2026" (en) from a stored date. Event dates are
+// calendar days ("2026-10-12"), read as local dates, not UTC midnight.
 export function formatDay(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("ru-RU");
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(iso)?.[0] ?? iso;
+  return formatDate(day, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 // Recorded costs summed per currency, never across currencies. Events
@@ -398,29 +391,12 @@ export function costTotals(events: MaintenanceEvent[]): { currency?: string; min
 
 export function bodyTypeLabel(bt?: string): string | null {
   if (!bt) return null;
-  const map: Record<string, string> = {
-    sedan: "седан",
-    hatchback: "хэтчбек",
-    wagon: "универсал",
-    coupe: "купе",
-    crossover: "кроссовер",
-    suv: "внедорожник",
-    pickup: "пикап",
-    minivan: "минивэн",
-    van: "фургон",
-    other: "авто",
-  };
+  const map: Record<string, string> = tr().common.bodyTypeInline;
   return map[bt] ?? bt;
 }
 
 export function fuelLabel(fuel?: string): string | null {
   if (!fuel) return null;
-  const map: Record<string, string> = {
-    gasoline: "бензин",
-    diesel: "дизель",
-    hybrid: "гибрид",
-    electric: "электро",
-    lpg: "газ",
-  };
+  const map: Record<string, string> = tr().common.fuelInline;
   return map[fuel] ?? fuel;
 }

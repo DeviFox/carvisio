@@ -18,6 +18,7 @@ import { ApiError, api, type GarageChanges, type GarageCollection, type GarageSn
 import { useAuth } from "./auth";
 import { newId, useGarage } from "./store";
 import type { ID } from "./types";
+import { tr } from "./i18n";
 
 const COLLECTIONS: GarageCollection[] = [
   "vehicles",
@@ -462,8 +463,8 @@ async function importGuest(user: User, announce: boolean) {
     }
     useAuth.getState().setNotice(
       err instanceof ApiError && err.status === 0
-        ? "Не удалось перенести машины в облако: нет связи с сервером. Они остаются на этом устройстве, попробуем снова при следующем входе."
-        : "Не удалось перенести машины в облако. Они остаются на этом устройстве.",
+        ? tr().auth.sync.importOffline
+        : tr().auth.sync.importFailed,
     );
     return;
   }
@@ -485,7 +486,7 @@ async function importGuest(user: User, announce: boolean) {
   saveOutbox();
   void flush();
   await pull();
-  if (announce) useAuth.getState().setNotice("Машины из этого браузера перенесены в облако.");
+  if (announce) useAuth.getState().setNotice(tr().auth.sync.imported);
 }
 
 function enterGuest() {

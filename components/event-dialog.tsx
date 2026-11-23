@@ -8,7 +8,8 @@ import { groupInt, groupMoney, groupedChange, intText } from "@/lib/number-input
 import { useConfirmClose, useModal } from "@/lib/use-modal";
 import { useGarage } from "@/lib/store";
 import { deleteEffect } from "@/lib/records";
-import { EVENT_TYPE_LABEL } from "@/lib/compute";
+import { eventTypeLabel } from "@/lib/compute";
+import { useT } from "@/lib/i18n/react";
 import type { MaintenanceEvent, Vehicle } from "@/lib/types";
 
 type Props = {
@@ -27,6 +28,7 @@ type Errors = Partial<Record<"date" | "mileage" | "cost" | "notes", string>>;
 // full record form (onChangeKind), which saves the result in this one's place.
 export default function EventDialog({ event, vehicle, onClose, onChangeKind }: Props) {
   const titleId = useId();
+  const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
@@ -36,7 +38,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
   const deleteEvent = useGarage((st) => st.deleteEvent);
 
   const isNote = event.type === "observation";
-  const unit = "км";
+  const unit = t.common.kmUnit;
   const names = event.componentIds
     .map((id) => components.find((c) => c.id === id)?.name)
     .filter(Boolean)
@@ -59,19 +61,19 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
 
   function validate(): Errors {
     const e: Errors = {};
-    if (!date) e.date = "Укажите дату.";
-    else if (date > today()) e.date = "Дата не может быть в будущем.";
+    if (!date) e.date = t.records.err.date;
+    else if (date > today()) e.date = t.records.err.dateFuture;
     if (mileage.trim()) {
       const n = toNumber(mileage);
-      if (!Number.isFinite(n) || n < 0) e.mileage = "Введите пробег цифрами.";
+      if (!Number.isFinite(n) || n < 0) e.mileage = t.common.mileageDigits;
     } else if (!isNote) {
-      e.mileage = "Укажите пробег.";
+      e.mileage = t.records.err.mileage;
     }
     if (cost.trim()) {
       const n = toNumber(cost);
-      if (!Number.isFinite(n) || n < 0) e.cost = "Стоимость не может быть отрицательной.";
+      if (!Number.isFinite(n) || n < 0) e.cost = t.records.err.costNegative;
     }
-    if (isNote && !notes.trim()) e.notes = "Напишите текст заметки.";
+    if (isNote && !notes.trim()) e.notes = t.records.err.noteText;
     return e;
   }
 
@@ -129,16 +131,16 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
         <div className={s.header}>
           <div className={s.titleGroup}>
             <h2 className={s.title} id={titleId}>
-              {EVENT_TYPE_LABEL[event.type]}
+              {eventTypeLabel(event.type)}
               {names ? `: ${names}` : ""}
             </h2>
             {onChangeKind ? (
               <button type="button" className={s.subtitleLink} onClick={() => onChangeKind(draft())}>
-                Изменить тип или компонент
+                {t.records.changeKind}
               </button>
             ) : null}
           </div>
-          <button type="button" className={s.close} onClick={requestClose} aria-label="Закрыть">
+          <button type="button" className={s.close} onClick={requestClose} aria-label={t.common.close}>
             <CloseIcon />
           </button>
         </div>
@@ -146,7 +148,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
         <form className={s.form} onSubmit={onSubmit} noValidate>
           <div className={s.row}>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ev-date">Дата</label>
+              <label className={s.label} htmlFor="ev-date">{t.records.date}</label>
               <input
                 id="ev-date"
                 ref={firstFieldRef}
@@ -161,8 +163,8 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
             </div>
             <div className={s.field}>
               <label className={s.label} htmlFor="ev-mileage">
-                Пробег
-                {isNote ? <span className={s.optional}>опционально</span> : null}
+                {t.records.mileage}
+                {isNote ? <span className={s.optional}>{t.common.optional}</span> : null}
               </label>
               <div className={s.suffixInput}>
                 <input
@@ -184,7 +186,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
           <div className={s.row}>
             <div className={s.field}>
               <label className={s.label} htmlFor="ev-cost">
-                Стоимость <span className={s.optional}>опционально</span>
+                {t.records.cost} <span className={s.optional}>{t.common.optional}</span>
               </label>
               <input
                 id="ev-cost"
@@ -199,7 +201,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
               {errors.cost && <span className={s.error} id="ev-cost-error">{errors.cost}</span>}
             </div>
             <div className={s.field}>
-              <label className={s.label} htmlFor="ev-cur">Валюта</label>
+              <label className={s.label} htmlFor="ev-cur">{t.records.currency}</label>
               <select id="ev-cur" className={s.select} value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -210,8 +212,8 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
 
           <div className={s.field}>
             <label className={s.label} htmlFor="ev-notes">
-              {isNote ? "Текст заметки" : "Заметка"}
-              {isNote ? null : <span className={s.optional}>опционально</span>}
+              {isNote ? t.records.noteText : t.records.note}
+              {isNote ? null : <span className={s.optional}>{t.common.optional}</span>}
             </label>
             <textarea
               id="ev-notes"
@@ -227,13 +229,13 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
 
           {confirming ? (
             <div className={s.deleteConfirm} role="alertdialog" aria-labelledby="ev-del-title" aria-describedby="ev-del-desc">
-              <p id="ev-del-title" className={s.deleteTitle}>Удалить эту запись?</p>
+              <p id="ev-del-title" className={s.deleteTitle}>{t.records.deleteQuestion}</p>
               <p id="ev-del-desc" className={s.deleteText}>
-                {effect ? `${effect} ` : ""}Отменить это нельзя.
+                {effect ? `${effect} ` : ""}{t.records.cannotUndo}
               </p>
               <div className={s.deleteActions}>
                 <button ref={cancelDeleteRef} type="button" className={s.ghostBtn} onClick={() => setConfirming(false)}>
-                  Не удалять
+                  {t.records.keep}
                 </button>
                 <button
                   type="button"
@@ -243,7 +245,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
                     onClose();
                   }}
                 >
-                  Удалить запись
+                  {t.records.deleteRecord}
                 </button>
               </div>
             </div>
@@ -254,15 +256,15 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
               <span />
             ) : (
               <button type="button" className={s.deleteLink} onClick={() => setConfirming(true)}>
-                Удалить запись
+                {t.records.deleteRecord}
               </button>
             )}
             <div className={s.footerActions}>
               <button type="button" className={s.ghostBtn} onClick={requestClose}>
-                Отмена
+                {t.common.cancel}
               </button>
               <button type="submit" className={s.primary}>
-                Сохранить
+                {t.common.save}
               </button>
             </div>
           </div>

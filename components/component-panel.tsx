@@ -12,7 +12,7 @@ import { groupInt, groupedChange, intText } from "@/lib/number-input";
 import { useGarage } from "@/lib/store";
 import { componentDeleteEffect } from "@/lib/records";
 import {
-  EVENT_TYPE_LABEL,
+  eventTypeLabel,
   formatDuration,
   formatKm,
   formatMoney,
@@ -22,6 +22,8 @@ import {
   statusFromCondition,
 } from "@/lib/compute";
 import { POSITIONED_CATEGORIES } from "@/lib/types";
+import { formatDate as formatLocalDate } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/react";
 import type { ComponentInspection, MaintenanceEvent, MaintenanceType, Vehicle } from "@/lib/types";
 import type { ComponentRow } from "./system-list";
 
@@ -37,7 +39,7 @@ type Props = {
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+  formatLocalDate(iso.slice(0, 10), { day: "numeric", month: "short", year: "numeric" });
 
 export default function ComponentPanel({
   row,
@@ -49,6 +51,7 @@ export default function ComponentPanel({
   onOpenEvent,
 }: Props) {
   const titleId = useId();
+  const t = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   // Focus lands on the sheet itself, so opening it doesn't ring the close button.
   const { overlayClick, trapTab } = useModal(true, onClose, panelRef);
@@ -90,12 +93,12 @@ export default function ComponentPanel({
               <ComponentPositionField component={component} />
             ) : null}
           </div>
-          <button type="button" className={d.close} onClick={onClose} aria-label="Закрыть">
+          <button type="button" className={d.close} onClick={onClose} aria-label={t.common.close}>
             <CloseIcon />
           </button>
         </header>
 
-        <section className={s.section} aria-label="Срок службы">
+        <section className={s.section} aria-label={t.car.serviceLife}>
           <div className={s.statusRow}>
             <StatusPill label={status.label} text={status.text} />
             {resource.kind === "known" ? (
@@ -122,26 +125,26 @@ export default function ComponentPanel({
                   </div>
                 </div>
               )}
-              <p className={s.hint}>Прогноз по пробегу и времени с установки, а не замер износа.</p>
+              <p className={s.hint}>{t.car.forecastHint}</p>
             </>
           ) : (
             <p className={s.empty}>
               {lifeMissing
-                ? "Срок службы не задан. Укажите его, чтобы считать остаток."
+                ? t.car.lifeMissing
                 : resource.kind === "unknown" && resource.reason === "no_current_mileage"
-                  ? "Не указан текущий пробег автомобиля. Укажите его, чтобы считать остаток."
+                  ? t.car.carMileageMissing
                   : part
-                  ? "Неизвестно, когда установлена текущая деталь."
+                  ? t.car.installUnknown
                   : component.kind === "inspectable"
-                    ? "Срок службы не отслеживается, состояние берётся из осмотров."
-                    : "Нет записей о замене. Добавьте её, чтобы считать срок службы."}
+                    ? t.car.inspectOnly
+                    : t.car.noReplacement}
             </p>
           )}
 
           {part ? (
             <dl className={s.facts}>
               <div>
-                <dt>Установлено</dt>
+                <dt>{t.car.installed}</dt>
                 <dd className="numeric">
                   {[
                     part.installedAtDate ? formatDate(part.installedAtDate) : null,
@@ -152,19 +155,19 @@ export default function ComponentPanel({
                 </dd>
               </div>
               <div>
-                <dt>Срок службы</dt>
+                <dt>{t.car.serviceLife}</dt>
                 <dd className="numeric">
                   {[
                     part.expectedLifeKm ? formatKm(part.expectedLifeKm) : null,
                     part.expectedLifeDays ? formatDuration(part.expectedLifeDays) : null,
                   ]
                     .filter(Boolean)
-                    .join(" · ") || "не задан"}
+                    .join(" · ") || t.car.notSetLower}
                 </dd>
               </div>
               {resource.kind === "known" ? (
                 <div>
-                  <dt>Прошло</dt>
+                  <dt>{t.car.elapsed}</dt>
                   <dd className="numeric">
                     {[
                       resource.drivenKm !== undefined ? formatKm(resource.drivenKm) : null,
@@ -183,20 +186,20 @@ export default function ComponentPanel({
               partId={part.id}
               initialKm={part.expectedLifeKm}
               initialDays={part.expectedLifeDays}
-              unit={"км"}
+              unit={t.common.kmUnit}
               onDone={() => setEditingLife(false)}
               onCancel={editingLife ? () => setEditingLife(false) : undefined}
             />
           ) : part ? (
             <button type="button" className={s.linkBtn} onClick={() => setEditingLife(true)}>
-              Изменить срок службы
+              {t.car.editLife}
             </button>
           ) : null}
         </section>
 
         {inspection ? (
           <section className={s.section} aria-labelledby={`${titleId}-insp`}>
-            <h3 className={s.sectionTitle} id={`${titleId}-insp`}>Последний осмотр</h3>
+            <h3 className={s.sectionTitle} id={`${titleId}-insp`}>{t.car.lastInspection}</h3>
             <div className={s.inspection}>
               <span className="numeric">{formatDate(inspection.date)}</span>
               {inspectionStatus ? (
@@ -209,18 +212,18 @@ export default function ComponentPanel({
 
         <section className={s.section} aria-labelledby={`${titleId}-hist`}>
           <h3 className={s.sectionTitle} id={`${titleId}-hist`}>
-            История
+            {t.car.history}
             <span className={`${s.count} mono numeric`}>{history.length}</span>
           </h3>
           {history.length === 0 ? (
-            <p className={s.empty}>Записей пока нет.</p>
+            <p className={s.empty}>{t.car.noRecords}</p>
           ) : (
             <ol className={s.history}>
               {history.map((e) => (
                 <li key={e.id} className={s.eventItem}>
                   <button type="button" className={s.event} onClick={() => onOpenEvent(e)}>
                   <div className={s.eventHead}>
-                    <span className={s.eventType}>{EVENT_TYPE_LABEL[e.type]}</span>
+                    <span className={s.eventType}>{eventTypeLabel(e.type)}</span>
                     <span className={`${s.eventDate} numeric`}>{formatDate(e.date)}</span>
                   </div>
                   <div className={`${s.eventMeta} numeric`}>
@@ -243,7 +246,7 @@ export default function ComponentPanel({
             sheet, away from the thumb's path to the primary actions below. */}
         {confirmingDelete ? null : (
           <button type="button" className={d.deleteLink} onClick={() => setConfirmingDelete(true)}>
-            Удалить деталь
+            {t.car.deletePart}
           </button>
         )}
 
@@ -255,9 +258,9 @@ export default function ComponentPanel({
               aria-labelledby={`${titleId}-del`}
               aria-describedby={`${titleId}-del-desc`}
             >
-              <p id={`${titleId}-del`} className={d.deleteTitle}>Удалить «{component.name}»?</p>
+              <p id={`${titleId}-del`} className={d.deleteTitle}>{t.car.deleteNamed(component.name)}</p>
               <p id={`${titleId}-del-desc`} className={d.deleteText}>
-                {deleteNote ? `${deleteNote} ` : ""}Отменить это нельзя.
+                {deleteNote ? `${deleteNote} ` : ""}{t.records.cannotUndo}
               </p>
               <div className={d.deleteActions}>
                 <button
@@ -266,7 +269,7 @@ export default function ComponentPanel({
                   className={d.ghostBtn}
                   onClick={() => setConfirmingDelete(false)}
                 >
-                  Не удалять
+                  {t.records.keep}
                 </button>
                 <button
                   type="button"
@@ -276,7 +279,7 @@ export default function ComponentPanel({
                     deleteComponent(component.id);
                   }}
                 >
-                  Удалить деталь
+                  {t.car.deletePart}
                 </button>
               </div>
             </div>
@@ -289,12 +292,12 @@ export default function ComponentPanel({
                     className={d.ghostBtn}
                     onClick={() => onAddRecord("replacement", lastReplacement)}
                   >
-                    Повторить замену
+                    {t.car.repeatReplacement}
                   </button>
                 ) : null}
                 <button type="button" className={d.primary} onClick={() => onAddRecord(firstRecord)}>
                   <PlusIcon />
-                  Добавить запись
+                  {t.car.addRecord}
                 </button>
               </div>
             </>
@@ -308,6 +311,7 @@ export default function ComponentPanel({
 // The name is the title; clicking it turns it into a field. Enter or leaving
 // the field saves, Escape puts the old name back without closing the panel.
 function EditableTitle({ id, componentId, name }: { id: string; componentId: string; name: string }) {
+  const t = useT();
   const renameComponent = useGarage((st) => st.renameComponent);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
@@ -351,7 +355,7 @@ function EditableTitle({ id, componentId, name }: { id: string; componentId: str
   if (!editing) {
     return (
       <h2 className={s.title} id={id}>
-        <button ref={titleBtnRef} type="button" className={s.titleBtn} onClick={start} title="Переименовать">
+        <button ref={titleBtnRef} type="button" className={s.titleBtn} onClick={start} title={t.car.rename}>
           {name}
           <PencilIcon className={s.titlePencil} width={16} height={16} />
         </button>
@@ -365,7 +369,7 @@ function EditableTitle({ id, componentId, name }: { id: string; componentId: str
       <input
         ref={inputRef}
         className={`${d.input} ${s.renameInput} ${error ? d.invalid : ""}`}
-        aria-label="Название детали"
+        aria-label={t.car.partName}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-rename-error` : undefined}
         maxLength={80}
@@ -414,6 +418,7 @@ type LifeFormProps = {
 };
 
 function LifeForm({ partId, initialKm, initialDays, unit, onDone, onCancel }: LifeFormProps) {
+  const t = useT();
   const updateInstalledPart = useGarage((st) => st.updateInstalledPart);
   const [km, setKm] = useState(initialKm ? intText(initialKm) : "");
   const [days, setDays] = useState(initialDays ? String(initialDays) : "");
@@ -424,11 +429,11 @@ function LifeForm({ partId, initialKm, initialDays, unit, onDone, onCancel }: Li
     const kmNum = km.trim() ? Number(km.replace(/\s/g, "")) : undefined;
     const daysNum = days.trim() ? Number(days) : undefined;
     if (kmNum === undefined && daysNum === undefined) {
-      setError("Укажите хотя бы один параметр.");
+      setError(t.car.setOne);
       return;
     }
     if ((kmNum !== undefined && !(kmNum > 0)) || (daysNum !== undefined && !(daysNum > 0))) {
-      setError("Срок службы должен быть больше нуля.");
+      setError(t.records.err.lifePositive);
       return;
     }
     updateInstalledPart(partId, { expectedLifeKm: kmNum, expectedLifeDays: daysNum });
@@ -439,7 +444,7 @@ function LifeForm({ partId, initialKm, initialDays, unit, onDone, onCancel }: Li
     <form className={s.lifeForm} onSubmit={onSubmit} noValidate>
       <div className={d.row}>
         <div className={d.field}>
-          <label className={d.label} htmlFor={`${partId}-km`}>По пробегу</label>
+          <label className={d.label} htmlFor={`${partId}-km`}>{t.car.byMileage}</label>
           <div className={d.suffixInput}>
             <input
               id={`${partId}-km`}
@@ -453,16 +458,16 @@ function LifeForm({ partId, initialKm, initialDays, unit, onDone, onCancel }: Li
           </div>
         </div>
         <div className={d.field}>
-          <label className={d.label} htmlFor={`${partId}-days`}>По времени</label>
+          <label className={d.label} htmlFor={`${partId}-days`}>{t.car.byTime}</label>
           <DaysInput id={`${partId}-days`} value={days} onChange={setDays} invalid={Boolean(error)} />
         </div>
       </div>
       {error ? <span className={d.error} role="alert">{error}</span> : null}
       <div className={s.lifeActions}>
         {onCancel ? (
-          <button type="button" className={d.ghostBtn} onClick={onCancel}>Отмена</button>
+          <button type="button" className={d.ghostBtn} onClick={onCancel}>{t.common.cancel}</button>
         ) : null}
-        <button type="submit" className={d.ghostBtn}>Сохранить срок службы</button>
+        <button type="submit" className={d.ghostBtn}>{t.car.saveLife}</button>
       </div>
     </form>
   );

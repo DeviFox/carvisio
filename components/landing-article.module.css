@@ -27,6 +27,7 @@
   font-size: 15px;
   font-weight: 700;
 }
+.headerActions { display: flex; align-items: center; gap: 12px; }
 .headerLink,
 .footer a { color: var(--muted); font-size: var(--fs-sm); }
 .headerLink:hover,
@@ -66,6 +67,7 @@
 .steps span { color: var(--body); font-size: var(--fs-sm); line-height: 1.6; }
 .faq { display: grid; gap: 8px; max-width: 760px; }
 .faq h3:not(:first-child) { margin-top: 18px; }
+.related { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 .footer { min-height: 76px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-sm); }
 
 @media (max-width: 700px) {
