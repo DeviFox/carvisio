@@ -17,6 +17,8 @@ export default function RootDocument({ lang, children }: { lang: Locale; childre
       {/* A root layout's own <head>; the rule targets pages/_document. */}
       {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
+        <script src="https://yandex.ru/ads/system/context.js" async />
+        <script data-page-id="20487741" src="https://yandex.ru/ads/system/ap-loader.js" async />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: LOCALE_BOOT_SCRIPT }} />
       </head>
