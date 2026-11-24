@@ -12,8 +12,8 @@ const ru = {
   soon: "скоро",
   journalLink: "Как вести журнал обслуживания",
   aboutNav: "О carvisio",
-  costsLink: "Учёт расходов на авто",
-  partsLink: "Ресурс деталей",
+  costsLink: "Расходы на автомобиль",
+  partsLink: "Срок замены деталей",
 
   theme: {
     now: { system: "как в системе", light: "светлая", dark: "тёмная" },

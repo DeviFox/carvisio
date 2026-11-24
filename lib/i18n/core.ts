@@ -18,8 +18,8 @@ export const LOCALE_KEY = "carvisio.locale";
 export const LOCALIZED_PATHS = {
   home: { ru: "/", en: "/en/" },
   journal: { ru: "/zhurnal-obsluzhivaniya-avtomobilya/", en: "/en/car-maintenance-log/" },
-  costs: { ru: "/uchet-rashodov-na-avtomobil/", en: "/en/car-expense-tracker/" },
-  parts: { ru: "/resurs-detalej-avtomobilya/", en: "/en/car-parts-service-life/" },
+  costs: { ru: "/car-expenses/", en: "/en/car-expense-tracker/" },
+  parts: { ru: "/part-replacement/", en: "/en/car-parts-service-life/" },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export function isLocale(v: unknown): v is Locale {
