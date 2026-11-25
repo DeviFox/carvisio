@@ -38,13 +38,13 @@ export function systemStatusWord(label: StatusLabel): string {
 // The system's pill speaks the same word as the parts behind it: when every
 // part at the system's state says it the same way ("Просрочено"), so does
 // the system. Mixed causes fall back to the generic word.
-function systemStatusText(label: StatusLabel, rows: ComponentRow[]): string {
+export function systemStatusText(label: StatusLabel, rows: ComponentRow[]): string {
   const texts = new Set(rows.filter((r) => r.status.label === label).map((r) => r.status.text));
   return texts.size === 1 ? [...texts][0] : systemStatusWord(label);
 }
 
 // What a collapsed system says besides its count: problems first, then gaps.
-function countLine(rows: ComponentRow[]): string {
+export function countLine(rows: ComponentRow[]): string {
   const t = tr().car;
   if (rows.length === 0) return t.noComponents;
   const n = (label: StatusLabel) => rows.filter((r) => r.status.label === label).length;
@@ -154,7 +154,7 @@ export default function SystemList({
   );
 }
 
-function ComponentLine({
+export function ComponentLine({
   row,
   flash,
   onOpen,
@@ -213,7 +213,7 @@ function ComponentLine({
 }
 
 
-function systemIcon(category: string) {
+export function systemIcon(category: string) {
   const common = {
     width: 18,
     height: 18,

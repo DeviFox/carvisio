@@ -208,3 +208,14 @@ export function ExportIcon(p: Props) {
     </svg>
   );
 }
+
+// A globe: the language switch.
+export function GlobeIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z" />
+    </svg>
+  );
+}

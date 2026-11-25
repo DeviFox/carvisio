@@ -4,6 +4,7 @@
   width: 100%;
   max-width: 800px;
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   overflow-y: auto;
   background: var(--card-raised);
   border-radius: var(--r-lg);
@@ -189,5 +190,10 @@
 
 /* Phones: a bottom sheet, like the other dialogs (the overlay docks it at this width). */
 @media (max-width: 560px) {
-  .card { border-radius: var(--r-lg) var(--r-lg) 0 0; max-height: 90vh; }
+  .card {
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    max-height: 90vh;
+    max-height: 90dvh;
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px));
+  }
 }

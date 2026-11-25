@@ -232,6 +232,13 @@
   .log .costCol { grid-area: cost; }
   .log .workCol { grid-area: work; margin-top: 4px; }
 
+  /* Out of table layout entirely: with table-layout: fixed the system row's
+     colspan sets the columns, and a grid row would be squeezed into the
+     first one (a component's name broke one letter per line). */
+  .status,
+  .status tbody,
+  .status tbody tr:first-child,
+  .status .systemName { display: block; }
   .status tbody tr:not(:first-child) {
     display: grid;
     grid-template-columns: 1fr auto;

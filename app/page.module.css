@@ -103,7 +103,7 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 .footerLinks { display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .footerLinks a:hover { color: var(--ink); }
 /* Phones only: the desktop bar carries the language as a tool button. */
-.langLink { display: none; color: inherit; font: inherit; }
+.langLink { display: none; align-items: center; gap: 6px; color: inherit; font: inherit; }
 .langLink:hover { color: var(--ink); }
 .versionNumber {
   margin-left: auto;
@@ -185,12 +185,15 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
   text-align: center;
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
-.emptySlot:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--ink);
+/* Hover only where there is one: on touch the tap would leave the slot lit blue. */
+@media (hover: hover) {
+  .emptySlot:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  .emptySlot:hover .emptyIcon { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 }
-.emptySlot:hover .emptyIcon { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .emptySlot:active { transform: translateY(1px); }
 
 .emptyIcon {
@@ -241,7 +244,10 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 }
 .statusLine strong { color: var(--ink); font-weight: 600; }
 .statusLine .sep { color: var(--line-dash); margin: 0 2px; }
-/* Mobile top bar: the help icon sits beside the primary action. */
+/* The count is data and stays mono; the note after it is a sentence, so it
+   speaks in the interface voice (Mono-for-Numbers Rule). */
+.statusLine .statusNote { font-family: var(--font-geist-sans), system-ui, sans-serif; letter-spacing: -0.005em; line-height: 1.5; }
+/* Mobile top bar: help, theme and account icons on the right. */
 .topActions { display: flex; align-items: center; gap: 4px; }
 
 
@@ -322,12 +328,22 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
   .shell {
     display: flex;
     flex-direction: column;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .appBar { display: none; }
-  .version { padding: 0 16px 12px; }
-  .langLink { display: inline; }
+  /* Phones: the links stack in one column at an even step, a hairline closes
+     them, and language + version share the last row (left / right). */
+  .version { padding: 0 16px 12px; align-items: center; row-gap: 8px; }
+  .footerLinks {
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .footerLinks a { padding-block: 6px; }
+  .langLink { display: inline-flex; }
 
   .topBar {
     display: flex;
@@ -336,18 +352,18 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
     background: var(--card);
     border-bottom: 1px solid var(--line);
     padding: 12px 16px;
+    /* One height on every page (36px icons + padding + hairline), whatever
+       a page puts in it. */
+    min-height: 61px;
     z-index: 10;
     flex-shrink: 0;
     gap: 12px;
   }
 
-  .topBar .primaryBtn { padding: 7px 12px; font-size: var(--fs-sm); flex-shrink: 0; gap: 6px; margin-left: 6px; }
-  .topBar .primaryBtn :global(svg) { width: 14px; height: 14px; }
-
   .topBrand { min-width: 0; flex-shrink: 1; }
   .topBar .brandName { font-size: var(--fs-sm); }
 
-  .main { padding: 24px 20px 32px; gap: 24px; max-width: 100%; }
+  .main { padding: 24px 16px 32px; gap: 24px; max-width: 100%; }
 
   .header { flex-direction: column; align-items: flex-start; gap: 16px; }
   .header .primaryBtn { align-self: stretch; justify-content: center; }
@@ -357,6 +373,11 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 
   .grid { grid-template-columns: 1fr; gap: 16px; }
   .emptySlot { min-height: 220px; padding: 32px 20px; }
+  /* After the cars the slot shrinks to one row: still the card's width and
+     the add action, no longer a card's height. */
+  .emptySlotMore { min-height: 0; flex-direction: row; gap: 12px; padding: 16px 20px; }
+  .emptySlotMore .emptyIcon { width: 36px; height: 36px; }
+  .emptySlotMore .emptyTitle { font-size: var(--fs-base); }
   .header .primaryBtn { display: none; }
 
   /* Phones: the second clause gets its own line instead of a dangling "·". */
@@ -365,3 +386,11 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
   .statusLine .statusNote { flex-basis: 100%; }
 }
 
+/* Touch: the 36px tool icons and the footer's text links keep their look but
+   get finger-sized hit areas, without moving anything around them. */
+@media (pointer: coarse) {
+  .toolBtn { position: relative; }
+  .toolBtn::after { content: ""; position: absolute; inset: -4px -2px; }
+  .footerLinks a { padding-block: 10px; }
+  .langLink { padding-block: 10px; }
+}

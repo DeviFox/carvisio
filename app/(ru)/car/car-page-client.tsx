@@ -6,18 +6,22 @@ import styles from "./page.module.css";
 import shellStyles from "@/app/page.module.css";
 import CarIllustration from "@/components/car-illustration";
 import AppBar, { VersionTag } from "@/components/app-bar";
+import AccountControl from "@/components/account-control";
+import ThemeToggle from "@/components/theme-toggle";
 import IntroCard from "@/components/intro-card";
 import AttentionList from "@/components/attention-list";
 import ComponentPanel from "@/components/component-panel";
 import EventDialog from "@/components/event-dialog";
 import RecentWork from "@/components/recent-work";
 import SystemList, {type ComponentRow, type SystemGroup} from "@/components/system-list";
+import SystemSheet from "@/components/system-sheet";
 import UpdateMileageDialog from "@/components/update-mileage-dialog";
 import AddEventDialog from "@/components/add-event-dialog";
 import AddCarDialog from "@/components/add-car-dialog";
 import ReportPanel from "@/components/report-panel";
 import {
 	ArrowLeftIcon,
+	HelpIcon,
 	PlusIcon,
 	PencilIcon,
 	ExportIcon,
@@ -60,6 +64,8 @@ export default function CarPageClient() {
 		replacing?: MaintenanceEvent;
 	} | null>(null);
 	const [openComponentId, setOpenComponentId] = useState<string | null>(null);
+	// Phones: the system opened from the car, shown in a sheet under it.
+	const [sheetSystemId, setSheetSystemId]     = useState<string | null>(null);
 	const [editEventId, setEditEventId]         = useState<string | null>(null);
 	const [editOpen, setEditOpen]       = useState(false);
 	// The report takes the ledger's place. Local state answers at once (a
@@ -123,15 +129,29 @@ export default function CarPageClient() {
 	if (!vehicle) {
 		return (
 			<div className={shellStyles.shell}>
+				{/* Same chrome as every other page, so the dead end still has the way home. */}
+				<header className={shellStyles.topBar}>
+					<button
+						type="button"
+						className={styles.backBtn}
+						onClick={() => router.push("/")}
+						aria-label={t.garage.toGarage}
+					>
+						<ArrowLeftIcon/>
+					</button>
+					<div className={shellStyles.topActions}>
+						<ThemeToggle/>
+						<AccountControl compact/>
+					</div>
+				</header>
+				<AppBar home/>
 				<main className={shellStyles.main}>
-					<h1 className={shellStyles.h1}>{t.car.notFound}</h1>
-					<p className={shellStyles.sub}>
-						{t.car.notFoundHint}
-					</p>
-					<div style={{marginTop: 24}}>
+					<div className={styles.notFound}>
+						<h1 className={shellStyles.h1}>{t.car.notFound}</h1>
+						<p className={shellStyles.sub}>{t.car.notFoundHint}</p>
 						<button
 							type="button"
-							className={shellStyles.primaryBtn}
+							className={`${shellStyles.primaryBtn} ${styles.notFoundBtn}`}
 							onClick={() => router.push("/")}
 						>
 							<ArrowLeftIcon/>
@@ -186,6 +206,7 @@ export default function CarPageClient() {
 		.sort((a, b) => severity[a.label] - severity[b.label]);
 	const editEvent     = vehicleEvents.find((e) => e.id === editEventId);
 	const openRow       = groups.flatMap((g) => g.rows).find((r) => r.component.id === openComponentId);
+	const sheetGroup    = groups.find((g) => g.system.id === sheetSystemId);
 
 	const zoneStates: Partial<Record<string, StatusLabel>> = {};
 	for (const g of groups) zoneStates[g.system.category] = g.label;
@@ -227,10 +248,24 @@ export default function CarPageClient() {
 		window.setTimeout(() => setFlashId((f) => (f === target ? null : f)), 1400);
 	}
 
+	// Phones and touch screens: the car is not sticky and there is no hover.
+	function carScrollsAway() {
+		return window.matchMedia("(max-width: 820px), (hover: none)").matches;
+	}
+
 	function focusSystem(category: string) {
 		const sys = vehicleSystems.find((s) => s.category === category);
 		if (!sys) return;
 		if (reportOpen) closeReport();
+		// No hover and no sticky car (phones, touch screens): scrolling to the
+		// ledger takes the car off screen and nothing says what was tapped. The
+		// system opens in a sheet instead, under the car with its zone lit.
+		if (carScrollsAway()) {
+			const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+			document.getElementById("car-stage")?.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+			setSheetSystemId(sys.id);
+			return;
+		}
 		reveal(sys.id);
 	}
 
@@ -266,6 +301,7 @@ export default function CarPageClient() {
 	return (
 		<>
 			<div className={shellStyles.shell}>
+				{/* Same tools as the garage's top bar, with the way back in place of the brand. */}
 				<header className={shellStyles.topBar}>
 					<button
 						type="button"
@@ -275,6 +311,13 @@ export default function CarPageClient() {
 					>
 						<ArrowLeftIcon/>
 					</button>
+					<div className={shellStyles.topActions}>
+						<button type="button" className={shellStyles.toolBtn} onClick={() => setHelpOpen(true)} aria-label={t.garage.howItWorks}>
+							<HelpIcon/>
+						</button>
+						<ThemeToggle/>
+						<AccountControl compact/>
+					</div>
 				</header>
 
 				<AppBar home onHelp={() => setHelpOpen(true)}/>
@@ -325,7 +368,7 @@ export default function CarPageClient() {
 						</div>
 						<button
 							type="button"
-							className={`${shellStyles.primaryBtn} ${styles.headCta}`}
+							className={`${shellStyles.primaryBtn} ${styles.headCta} ${reportOpen ? styles.ctaHidden : ""}`}
 							onClick={() => setRecord({})}
 						>
 							<PlusIcon/>
@@ -334,14 +377,14 @@ export default function CarPageClient() {
 					</header>
 
 					<div className={`${styles.layout} ${reportOpen ? styles.reporting : ""}`}>
-						<aside className={styles.stage} aria-label={t.car.carState}>
+						<aside className={styles.stage} id="car-stage" aria-label={t.car.carState}>
 							<div className={styles.carCol}>
 								<div className={styles.illustration}>
 									<CarIllustration
 										bodyType={vehicle.bodyType}
 										availableZones={availableZones as never}
 										zoneStates={zoneStates as never}
-										activeZone={hoveredSystem}
+										activeZone={sheetGroup?.system.category ?? hoveredSystem}
 										onZoneClick={focusSystem}
 									/>
 								</div>
@@ -399,7 +442,8 @@ export default function CarPageClient() {
 								{hasComponents ? (
 									<AttentionList
 										rows={attention}
-										onSelect={(row) => reveal(row.system.id, row.component.id)}
+										// On a phone the part's own sheet, rather than a jump down the page.
+										onSelect={(row) => (carScrollsAway() ? setOpenComponentId(row.component.id) : reveal(row.system.id, row.component.id))}
 									/>
 								) : null}
 							</div>
@@ -409,7 +453,6 @@ export default function CarPageClient() {
 							{reportOpen ? (
 								<ReportPanel vehicle={vehicle} onClose={closeReport}/>
 							) : (
-							<>
 							<section className={styles.systems} aria-label={t.car.carSystems}>
 								{groups.length === 0 ? (
 									<div className={styles.emptyNote}>{t.car.noSystems}</div>
@@ -425,15 +468,20 @@ export default function CarPageClient() {
 									/>
 								)}
 							</section>
-
-							<RecentWork
-								events={vehicleEvents}
-								components={components}
-								onOpen={(e) => setEditEventId(e.id)}
-							/>
-							</>
 							)}
 						</div>
+
+						{/* Its own grid cell: under the systems up to 1599px, a third
+						    column on wide screens instead of below a long ledger. */}
+						{reportOpen ? null : (
+							<div className={styles.history}>
+								<RecentWork
+									events={vehicleEvents}
+									components={components}
+									onOpen={(e) => setEditEventId(e.id)}
+								/>
+							</div>
+						)}
 					</div>
 				</main>
 				<VersionTag/>
@@ -446,6 +494,14 @@ export default function CarPageClient() {
 				onClose={() => setMileageOpen(false)}
 				vehicle={vehicle}
 			/>
+			{sheetGroup ? (
+				<SystemSheet
+					group={sheetGroup}
+					onClose={() => setSheetSystemId(null)}
+					onOpenComponent={setOpenComponentId}
+					onAddComponent={(systemId) => setRecord({systemId})}
+				/>
+			) : null}
 			{/* Stays open under its dialogs, so the history is there to check against. */}
 			{openRow ? (
 				<ComponentPanel

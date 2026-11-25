@@ -22,6 +22,7 @@
   flex-direction: column;
   gap: 24px;
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   overflow-y: auto;
 }
 @keyframes dialogIn {
@@ -184,6 +185,13 @@
   padding-top: 4px;
   border-top: 1px solid var(--line);
   padding-top: 20px;
+  /* Pinned to the dialog's bottom while the fields scroll under it. */
+  position: sticky;
+  bottom: -24px;
+  margin-bottom: -24px;
+  padding-bottom: 24px;
+  background: var(--card-raised);
+  z-index: 1;
 }
 
 .ghostBtn {
@@ -229,6 +237,7 @@
     padding: 20px 20px 16px;
     gap: 20px;
     max-height: 90vh;
+    max-height: 90dvh;
   }
   .row { grid-template-columns: 1fr; gap: 14px; }
   .stepper { gap: 10px; min-width: 0; }
@@ -238,8 +247,19 @@
   .stepRule { display: none; }
   .mobileCounter { display: inline; color: var(--muted); font-weight: 500; margin-left: 8px; font-family: var(--font-geist-mono); font-size: var(--fs-xs); letter-spacing: 0.02em; }
   .title { font-size: var(--fs-md); }
-  .footer { padding-top: 16px; }
+  .footer {
+    padding-top: 16px;
+    bottom: -16px;
+    margin-bottom: -16px;
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px));
+  }
   .primary { padding: 10px 14px; }
+}
+
+/* Phones on their side: little height, so the dialog takes nearly all of it. */
+@media (min-width: 561px) and (max-height: 520px) {
+  .overlay { padding: 8px 24px; }
+  .dialog { max-height: calc(100dvh - 16px); padding-top: 20px; gap: 16px; }
 }
 
 /* Reduced motion: fade in only, no travel or scale. */

@@ -15,6 +15,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Draw under the notch and home indicator; the bars and sheets pad
+  // themselves with env(safe-area-inset-*), which is 0 without this.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1120" },

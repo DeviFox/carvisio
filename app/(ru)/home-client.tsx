@@ -136,15 +136,6 @@ export default function HomeClient() {
             </button>
             <ThemeToggle />
             <AccountControl compact />
-            <button
-              type="button"
-              className={styles.primaryBtn}
-              onClick={() => setOpen(true)}
-              aria-label={t.garage.addCar}
-            >
-              <PlusIcon />
-              {t.garage.addShort}
-            </button>
           </div>
         </header>
         <AppBar onHelp={() => setShowIntro(true)} />
@@ -223,7 +214,7 @@ export default function HomeClient() {
                     <button
                       type="button"
                       ref={addSlotRef}
-                      className={styles.emptySlot}
+                      className={`${styles.emptySlot} ${styles.emptySlotMore}`}
                       onClick={() => setOpen(true)}
                       aria-label={t.garage.addAnotherCar}
                     >

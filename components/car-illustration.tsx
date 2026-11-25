@@ -94,18 +94,21 @@ function RasterCarIllustration({
       data-theme="light"
       style={{ "--car-ratio": `${crop.w} / ${crop.h}`, "--car-aspect": crop.w / crop.h } as React.CSSProperties}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer */}
-      <img
-        className={styles.picture}
-        src={raster.src}
-        alt=""
-        decoding="async"
-        style={{
-          width: `${(raster.width / crop.w) * 100}%`,
-          left: `${(-crop.x / crop.w) * 100}%`,
-          top: `${(-crop.y / crop.h) * 100}%`,
-        }}
-      />
+      {/* Only the picture is cropped; the label may pass the box's edge. */}
+      <div className={styles.pictureClip}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer */}
+        <img
+          className={styles.picture}
+          src={raster.src}
+          alt=""
+          decoding="async"
+          style={{
+            width: `${(raster.width / crop.w) * 100}%`,
+            left: `${(-crop.x / crop.w) * 100}%`,
+            top: `${(-crop.y / crop.h) * 100}%`,
+          }}
+        />
+      </div>
       <svg
         className={styles.rasterZones}
         viewBox={`${crop.x} ${crop.y} ${crop.w} ${crop.h}`}
@@ -142,13 +145,30 @@ function RasterCarIllustration({
           ));
         })}
         {label && shown ? (
-          <span className={`${styles.chip} ${label.labelAbove ? styles.chipAbove : ""}`} style={at(label.anchor)}>
+          <span
+            className={[
+              styles.chip,
+              label.labelAbove ? styles.chipAbove : "",
+              // Near the box's sides the label hangs inward instead of centring,
+              // so "Электрика" by the headlights is not cut by the card's edge.
+              edgeOf(label.anchor[0], crop) ?? "",
+            ].join(" ")}
+            style={at(label.anchor)}
+          >
             {ZONE_LABEL[shown]}
           </span>
         ) : null}
       </div>
     </div>
   );
+}
+
+// Which way a label must hang to stay inside the picture: null in the middle.
+function edgeOf(x: number, crop: RasterCar["crop"]): string | null {
+  const f = (x - crop.x) / crop.w;
+  if (f > 0.8) return styles.chipEnd;
+  if (f < 0.2) return styles.chipStart;
+  return null;
 }
 
 function VectorCarIllustration({
@@ -233,6 +253,7 @@ function VectorCarIllustration({
             const points = hint.badgeCentres ?? [hint.centre];
             return points.map(([cx, cy], i) => (
               <g key={`b-${id}-${i}`} className={styles[`badge-${state}`]}>
+                <circle cx={cx} cy={cy} r={10} className={styles.badgeRipple} />
                 <circle cx={cx} cy={cy} r={10} className={styles.badgePulse} />
                 <circle cx={cx} cy={cy} r={5} className={styles.badgeDot} />
               </g>

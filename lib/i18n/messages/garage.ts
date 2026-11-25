@@ -26,7 +26,6 @@ const ru = {
 
   title: "Мой гараж",
   addCar: "Добавить автомобиль",
-  addShort: "Добавить",
   carsInGarage: "Автомобили в гараже",
   addFirstCar: "Добавить первый автомобиль",
   addAnotherCar: "Добавить ещё автомобиль",
@@ -102,7 +101,6 @@ const en: GarageMessages = {
 
   title: "My garage",
   addCar: "Add a car",
-  addShort: "Add",
   carsInGarage: "Cars in the garage",
   addFirstCar: "Add your first car",
   addAnotherCar: "Add another car",

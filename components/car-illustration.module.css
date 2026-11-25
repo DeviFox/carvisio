@@ -28,6 +28,9 @@
   fill: transparent;
   stroke: none;
   cursor: pointer;
+  /* No browser tap flash: it paints the path's whole bounding box, a blue
+     square over the car. The zone's own lit state is the feedback. */
+  -webkit-tap-highlight-color: transparent;
   transition: fill 140ms ease, stroke 140ms ease;
   pointer-events: all;
   /* Needed for annulus zones (e.g. tires = ring with a hole under brakes). */
@@ -49,18 +52,26 @@
 /* ─── Status badges ─── */
 .badges { pointer-events: none; }
 .badgeDot { }
+/* The halo holds still; on arrival a ring spreads out of it three times and
+   fades (transform + opacity only, so it stays smooth on phones), then the
+   dot is quiet. The ring ends invisible, so stopping never jumps. */
 .badgePulse {
   fill: currentColor;
   opacity: 0.26;
-  /* Three beats to draw the eye on arrival, then the dot holds still. */
-  animation: carpulse 2s ease-in-out 3;
+}
+.badgeRipple {
+  fill: currentColor;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: badgeRipple 2.4s cubic-bezier(0.25, 0.6, 0.3, 1) 3;
 }
 @media (prefers-reduced-motion: reduce) {
-  .badgePulse { animation: none; }
+  .badgeRipple { animation: none; }
 }
-@keyframes carpulse {
-  0%, 100% { opacity: 0.26; }
-  50% { opacity: 0.5; }
+@keyframes badgeRipple {
+  0% { transform: scale(0.6); opacity: 0.45; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
 .badge-attention { color: var(--warn); }
 .badge-attention .badgeDot { fill: var(--warn); }
@@ -90,8 +101,14 @@
   width: min(100%, calc(var(--car-max-h, 400px) * var(--car-aspect)));
   aspect-ratio: var(--car-ratio);
   margin-inline: auto;
-  overflow: hidden;
   user-select: none;
+}
+/* The crop: clips the picture, not the dots and the label over it. */
+.pictureClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 /* The pictures are cut out with an alpha ground shadow in slate ink, so they
    sit on any card in either theme as they are; no blend mode. */
@@ -123,16 +140,25 @@
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 26%, transparent), 0 0 0 1.5px #ffffff inset;
-  animation: dotpulse 2s ease-in-out 3;
+}
+/* Same ring as the vector badge: out of the halo, three times, fading. */
+.dot::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  animation: dotRipple 2.4s cubic-bezier(0.25, 0.6, 0.3, 1) 3;
 }
 .dot-attention { color: var(--warn); }
 .dot-critical { color: var(--danger); }
-@keyframes dotpulse {
-  0%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 26%, transparent), 0 0 0 1.5px #ffffff inset; }
-  50% { box-shadow: 0 0 0 7px color-mix(in srgb, currentColor 40%, transparent), 0 0 0 1.5px #ffffff inset; }
+@keyframes dotRipple {
+  0% { transform: scale(0.6); opacity: 0.45; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dot { animation: none; }
+  .dot::after { animation: none; }
 }
 
 /* Hover label: centred on its zone, real 12px type at every width; over a
@@ -152,3 +178,9 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.12);
 }
 .chipAbove { transform: translate(-50%, calc(-100% - 6px)); }
+/* Near a side: the label's edge, not its middle, sits on the anchor (+12px of
+   slack into the zone), so it stays inside the picture. */
+.chipEnd { transform: translate(calc(-100% + 12px), -50%); }
+.chipStart { transform: translate(-12px, -50%); }
+.chipAbove.chipEnd { transform: translate(calc(-100% + 12px), calc(-100% - 6px)); }
+.chipAbove.chipStart { transform: translate(-12px, calc(-100% - 6px)); }

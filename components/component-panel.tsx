@@ -368,7 +368,7 @@ function EditableTitle({ id, componentId, name }: { id: string; componentId: str
       <h2 className="sr-only" id={id}>{name}</h2>
       <input
         ref={inputRef}
-        className={`${d.input} ${s.renameInput} ${error ? d.invalid : ""}`}
+        className={`${d.input} ${s.renameInput} fieldLarge ${error ? d.invalid : ""}`}
         aria-label={t.car.partName}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-rename-error` : undefined}

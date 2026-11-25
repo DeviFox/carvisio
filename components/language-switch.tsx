@@ -4,14 +4,15 @@ import { useRouter } from "next/navigation";
 import styles from "@/app/page.module.css";
 import { setLocale, storeLocale, type Locale } from "@/lib/i18n";
 import { usePageLocale, useLocale, useT } from "@/lib/i18n/react";
+import { GlobeIcon } from "./icons";
 
 const OTHER: Record<Locale, Locale> = { ru: "en", en: "ru" };
 
 const NATIVE_NAME: Record<Locale, string> = { ru: "Русский", en: "English" };
 
 // Names the language a press switches to: "EN" as a tool button in the
-// desktop bar, "English" as a footer link on phones, where the top bar has no
-// room. Pages with a URL per language go to the other URL; the app switches
+// desktop bar, a globe + "English" as a footer link on phones, where the top
+// bar has no room; the globe says it is a language switch, not a page link. Pages with a URL per language go to the other URL; the app switches
 // in place and remembers the choice.
 export default function LanguageSwitch({ variant = "tool" }: { variant?: "tool" | "link" }) {
   const t = useT();
@@ -38,7 +39,14 @@ export default function LanguageSwitch({ variant = "tool" }: { variant?: "tool" 
       aria-label={t.garage.language.switchTo}
       title={t.garage.language.switchTo}
     >
-      {variant === "tool" ? next.toUpperCase() : NATIVE_NAME[next]}
+      {variant === "tool" ? (
+        next.toUpperCase()
+      ) : (
+        <>
+          <GlobeIcon width={14} height={14} />
+          {NATIVE_NAME[next]}
+        </>
+      )}
     </button>
   );
 }

@@ -24,7 +24,7 @@ export default function RecentWork({ events, components, onOpen }: Props) {
   const shown = showAll ? events : events.slice(0, VISIBLE);
 
   return (
-    <section aria-labelledby="recent-work-title">
+    <section className={styles.workCard} aria-labelledby="recent-work-title">
       <div className={styles.sectionHead}>
         <h2 id="recent-work-title" className={styles.sectionTitle}>
           {showAll ? t.car.allWork : t.car.recentWork}

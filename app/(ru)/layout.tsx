@@ -18,6 +18,9 @@ export const metadata: Metadata = {
 
 // Browser chrome follows the OS; the page itself also honours a manual choice.
 export const viewport: Viewport = {
+  // Draw under the notch and home indicator; the bars and sheets pad
+  // themselves with env(safe-area-inset-*), which is 0 without this.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1120" },
