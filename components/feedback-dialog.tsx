@@ -159,13 +159,9 @@ function FeedbackDialog({ onClose }: { onClose: () => void }) {
                   if (emailError) setEmailError(null);
                 }}
                 aria-invalid={!!emailError}
-                aria-describedby="fb-email-note"
+                aria-describedby={emailError ? "fb-email-note" : undefined}
               />
-              {emailError ? (
-                <span className={d.error} id="fb-email-note">{emailError}</span>
-              ) : (
-                <span className={d.hint} id="fb-email-note">{f.emailHint}</span>
-              )}
+              {emailError ? <span className={d.error} id="fb-email-note">{emailError}</span> : null}
             </div>
 
             {/* Honeypot: off-screen and out of the tab order; only bots fill it. */}

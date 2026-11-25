@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import styles from "@/app/page.module.css";
-import { GarageIcon, HelpIcon, SettingsIcon } from "./icons";
+import { GarageIcon, HelpIcon, MessageIcon, SettingsIcon } from "./icons";
 import AccountControl from "./account-control";
 import ThemeToggle from "./theme-toggle";
 import LanguageSwitch from "./language-switch";
@@ -76,8 +76,12 @@ export function VersionTag() {
         <Link href={LOCALIZED_PATHS.journal[locale]}>{t.garage.journalLink}</Link>
         <Link href={LOCALIZED_PATHS.costs[locale]}>{t.garage.costsLink}</Link>
         <Link href={LOCALIZED_PATHS.parts[locale]}>{t.garage.partsLink}</Link>
-        <button type="button" className={styles.footerBtn} onClick={showFeedback}>{t.feedback.link}</button>
       </nav>
+      {/* Not one of the reading links: an action, set apart and drawn as a control. */}
+      <button type="button" className={styles.feedbackBtn} onClick={showFeedback}>
+        <MessageIcon width={16} height={16} />
+        {t.feedback.link}
+      </button>
       <LanguageSwitch variant="link" />
       <span className={styles.versionNumber}>v{APP_VERSION}</span>
       <FeedbackHost />

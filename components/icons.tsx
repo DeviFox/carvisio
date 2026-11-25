@@ -219,3 +219,13 @@ export function GlobeIcon(p: Props) {
     </svg>
   );
 }
+
+// A speech bubble: "write to us".
+export function MessageIcon(p: Props) {
+  return (
+    <svg {...base} {...p}>
+      <path d="M6 4h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-4 3.5V17H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <path d="M8.5 9.5h7M8.5 12.5h4" />
+    </svg>
+  );
+}

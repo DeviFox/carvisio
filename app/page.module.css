@@ -92,7 +92,8 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 .version {
   margin-top: auto;
   display: flex;
-  align-items: baseline;
+  /* Centre, not baseline: the outlined feedback control is taller than the links. */
+  align-items: center;
   justify-content: space-between;
   gap: 8px 24px;
   flex-wrap: wrap;
@@ -101,9 +102,30 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
   font-size: var(--fs-xs);
 }
 .footerLinks { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-.footerLinks a:hover, .footerBtn:hover { color: var(--ink); }
-/* "Обратная связь" opens a dialog, so it is a button dressed as its neighbours. */
-.footerBtn { color: inherit; font: inherit; text-align: start; }
+.footerLinks a:hover { color: var(--ink); }
+/* Feedback: a quiet outlined control at the right, beside the version —
+   findable without competing with the page's blue action. */
+.feedbackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.feedbackBtn svg { color: var(--body); flex: none; }
+@media (hover: hover) {
+  .feedbackBtn:hover { background: color-mix(in srgb, var(--line) 45%, var(--card)); border-color: var(--muted); }
+}
+.feedbackBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.feedbackBtn ~ .versionNumber { margin-left: 0; }
 /* Phones only: the desktop bar carries the language as a tool button. */
 .langLink { display: none; align-items: center; gap: 6px; color: inherit; font: inherit; }
 .langLink:hover { color: var(--ink); }
@@ -344,7 +366,10 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
     padding-bottom: 8px;
     border-bottom: 1px solid var(--line);
   }
-  .footerLinks a, .footerBtn { padding-block: 6px; }
+  .footerLinks a { padding-block: 6px; }
+  /* Phones: the feedback control opens the footer, on its own row. */
+  .feedbackBtn { order: -1; margin: 0 auto 4px 0; padding-block: 10px; }
+  .feedbackBtn ~ .versionNumber { margin-left: auto; }
   .langLink { display: inline-flex; }
 
   .topBar {
@@ -393,6 +418,6 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 @media (pointer: coarse) {
   .toolBtn { position: relative; }
   .toolBtn::after { content: ""; position: absolute; inset: -4px -2px; }
-  .footerLinks a, .footerBtn { padding-block: 10px; }
+  .footerLinks a { padding-block: 10px; }
   .langLink { padding-block: 10px; }
 }
