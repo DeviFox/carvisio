@@ -6,6 +6,8 @@ import { GarageIcon, HelpIcon, SettingsIcon } from "./icons";
 import AccountControl from "./account-control";
 import ThemeToggle from "./theme-toggle";
 import LanguageSwitch from "./language-switch";
+import FeedbackHost from "./feedback-dialog";
+import { APP_VERSION, useFeedback } from "@/lib/feedback";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { LOCALIZED_PATHS } from "@/lib/i18n";
 
@@ -62,19 +64,23 @@ export default function AppBar({ home, onHelp, bare }: Props) {
   );
 }
 
-// Page footer: the journal article, the language on phones, the version.
+// Page footer: the journal article, feedback, the language on phones, the
+// version. It also hosts the feedback dialog, as every screen has a footer.
 export function VersionTag() {
   const t = useT();
   const locale = useLocale();
+  const showFeedback = useFeedback((st) => st.show);
   return (
     <footer className={styles.version}>
       <nav className={styles.footerLinks} aria-label={t.garage.aboutNav}>
         <Link href={LOCALIZED_PATHS.journal[locale]}>{t.garage.journalLink}</Link>
         <Link href={LOCALIZED_PATHS.costs[locale]}>{t.garage.costsLink}</Link>
         <Link href={LOCALIZED_PATHS.parts[locale]}>{t.garage.partsLink}</Link>
+        <button type="button" className={styles.footerBtn} onClick={showFeedback}>{t.feedback.link}</button>
       </nav>
       <LanguageSwitch variant="link" />
-      <span className={styles.versionNumber}>v1.0.0 beta</span>
+      <span className={styles.versionNumber}>v{APP_VERSION}</span>
+      <FeedbackHost />
     </footer>
   );
 }

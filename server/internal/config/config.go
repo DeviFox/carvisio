@@ -25,6 +25,15 @@ type Config struct {
 	OpenRouterAPIKey string
 	OpenRouterModel  string
 	OpenRouterEffort string // reasoning effort: low, medium, high; empty = model default
+
+	// Outgoing mail. While SMTPHost is empty, emails only go to the log.
+	SMTPHost string
+	SMTPPort int
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string // defaults to SMTPUser
+	// Where feedback from the in-app form is sent. Empty = saved, not sent.
+	FeedbackTo string
 }
 
 func Load() (Config, error) {
@@ -41,6 +50,12 @@ func Load() (Config, error) {
 		OpenRouterAPIKey: os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterModel:  getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5"),
 		OpenRouterEffort: os.Getenv("OPENROUTER_REASONING_EFFORT"),
+
+		SMTPHost:   os.Getenv("SMTP_HOST"),
+		SMTPUser:   os.Getenv("SMTP_USER"),
+		SMTPPass:   os.Getenv("SMTP_PASS"),
+		SMTPFrom:   getenv("SMTP_FROM", os.Getenv("SMTP_USER")),
+		FeedbackTo: os.Getenv("FEEDBACK_TO"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
@@ -56,6 +71,13 @@ func Load() (Config, error) {
 	}
 
 	var err error
+	if cfg.SMTPPort, err = getint("SMTP_PORT", 465); err != nil {
+		return Config{}, err
+	}
+	if cfg.SMTPHost != "" && (cfg.SMTPUser == "" || cfg.SMTPPass == "" || cfg.SMTPFrom == "") {
+		return Config{}, errors.New("SMTP_HOST is set: SMTP_USER and SMTP_PASS are required too")
+	}
+
 	if cfg.CookieSecure, err = getbool("COOKIE_SECURE", true); err != nil {
 		return Config{}, err
 	}
@@ -70,6 +92,18 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getint(key string, fallback int) (int, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 || n > 65535 {
+		return 0, fmt.Errorf("%s: %q is not a port number", key, v)
+	}
+	return n, nil
 }
 
 func getbool(key string, fallback bool) (bool, error) {

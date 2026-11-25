@@ -101,7 +101,9 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
   font-size: var(--fs-xs);
 }
 .footerLinks { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-.footerLinks a:hover { color: var(--ink); }
+.footerLinks a:hover, .footerBtn:hover { color: var(--ink); }
+/* "Обратная связь" opens a dialog, so it is a button dressed as its neighbours. */
+.footerBtn { color: inherit; font: inherit; text-align: start; }
 /* Phones only: the desktop bar carries the language as a tool button. */
 .langLink { display: none; align-items: center; gap: 6px; color: inherit; font: inherit; }
 .langLink:hover { color: var(--ink); }
@@ -342,7 +344,7 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
     padding-bottom: 8px;
     border-bottom: 1px solid var(--line);
   }
-  .footerLinks a { padding-block: 6px; }
+  .footerLinks a, .footerBtn { padding-block: 6px; }
   .langLink { display: inline-flex; }
 
   .topBar {
@@ -391,6 +393,6 @@ a.toolBtn:hover, button.toolBtn:hover { background: color-mix(in srgb, var(--lin
 @media (pointer: coarse) {
   .toolBtn { position: relative; }
   .toolBtn::after { content: ""; position: absolute; inset: -4px -2px; }
-  .footerLinks a { padding-block: 10px; }
+  .footerLinks a, .footerBtn { padding-block: 10px; }
   .langLink { padding-block: 10px; }
 }

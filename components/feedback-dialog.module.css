@@ -1,0 +1,67 @@
+/* Feedback form: the shared dialog (dialog.module.css) plus the few parts
+   only it has — the length note, the context line, the sent state. */
+.message { min-height: 140px; }
+
+.messageNote {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 0;
+}
+.count { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.countOver { color: var(--danger-ink); font-weight: 500; }
+
+/* What goes along with the message, said before it goes. */
+.context {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.sendError {
+  font-size: var(--fs-sm);
+  color: var(--danger-ink);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* Bots fill every input they find; people never see this one. */
+.trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.sent {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: start;
+}
+.sentMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok-ink);
+}
+.sentMark svg { width: 16px; height: 16px; }
+.sentText {
+  align-self: center;
+  font-size: var(--fs-base);
+  color: var(--body);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.sentActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

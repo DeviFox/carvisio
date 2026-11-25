@@ -12,6 +12,7 @@ import (
 
 type Message struct {
 	To      string
+	ReplyTo string // optional: where "Reply" in the inbox should go
 	Subject string
 	Body    string // plain text
 }
@@ -27,6 +28,6 @@ type Log struct {
 
 func (m Log) Send(_ context.Context, msg Message) error {
 	m.Logger.Info("email (not sent, log mailer)",
-		"to", msg.To, "subject", msg.Subject, "body", msg.Body)
+		"to", msg.To, "replyTo", msg.ReplyTo, "subject", msg.Subject, "body", msg.Body)
 	return nil
 }

@@ -78,6 +78,14 @@ async function request<T>(
   return data as T;
 }
 
+export type FeedbackInput = {
+  message: string;
+  email?: string;
+  page?: string;
+  appVersion?: string;
+  website?: string; // honeypot, always empty from a person
+};
+
 export const api = {
   me: () => request<User>("GET", "/api/me"),
   register: (email: string, password: string) =>
@@ -92,4 +100,5 @@ export const api = {
   // A first import carries a whole garage: give it longer than a click.
   applyGarageChanges: (changes: GarageChanges, timeoutMs?: number) =>
     request<void>("POST", "/api/garage/changes", changes, timeoutMs),
+  feedback: (input: FeedbackInput) => request<void>("POST", "/api/feedback", input),
 };

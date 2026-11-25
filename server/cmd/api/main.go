@@ -13,6 +13,7 @@ import (
 	"github.com/DeviFox/carfolio/server/internal/auth"
 	"github.com/DeviFox/carfolio/server/internal/config"
 	"github.com/DeviFox/carfolio/server/internal/db"
+	"github.com/DeviFox/carfolio/server/internal/feedback"
 	"github.com/DeviFox/carfolio/server/internal/garage"
 	"github.com/DeviFox/carfolio/server/internal/httpx"
 	"github.com/DeviFox/carfolio/server/internal/mailer"
@@ -46,7 +47,22 @@ func run(log *slog.Logger) error {
 		return err
 	}
 
-	authHandler, err := auth.NewHandler(auth.NewStore(pool), mailer.Log{Logger: log}, log, auth.Options{
+	var mail mailer.Mailer = mailer.Log{Logger: log}
+	if cfg.SMTPHost != "" {
+		mail = mailer.SMTP{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUser,
+			Password: cfg.SMTPPass,
+			From:     cfg.SMTPFrom,
+			FromName: "carvisio",
+		}
+		log.Info("mailer: smtp", "host", cfg.SMTPHost, "port", cfg.SMTPPort, "from", cfg.SMTPFrom)
+	} else {
+		log.Info("mailer: log only (SMTP_HOST is empty)")
+	}
+
+	authHandler, err := auth.NewHandler(auth.NewStore(pool), mail, log, auth.Options{
 		SecureCookie: cfg.CookieSecure,
 		TrustProxy:   cfg.TrustProxy,
 		AppURL:       cfg.AppURL,
@@ -72,6 +88,10 @@ func run(log *slog.Logger) error {
 		Model:           cfg.OpenRouterModel,
 		ReasoningEffort: cfg.OpenRouterEffort,
 	}, log).Routes(mux, authHandler.RequireUser)
+	feedback.NewHandler(feedback.NewStore(pool), mail, log, feedback.Options{
+		To:         cfg.FeedbackTo,
+		TrustProxy: cfg.TrustProxy,
+	}).Routes(mux, authHandler.OptionalUser)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

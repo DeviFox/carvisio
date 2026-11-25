@@ -8,6 +8,7 @@ import { useModal } from "@/lib/use-modal";
 import { formatKm } from "@/lib/compute";
 import { formatNumber, type Messages } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/react";
+import { useFeedback } from "@/lib/feedback";
 
 // First-run story about the few ideas carvisio rests on, as a modal: opens by
 // itself on the first visit to an empty garage, and from "как это работает".
@@ -92,6 +93,7 @@ export default function IntroCard({ onClose }: { onClose: () => void }) {
   const current = PAGES[page];
   const dialogRef = useRef<HTMLDivElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
+  const showFeedback = useFeedback((st) => st.show);
 
   function close() {
     rememberDismissed();
@@ -131,7 +133,21 @@ export default function IntroCard({ onClose }: { onClose: () => void }) {
 
       <div className={s.footer}>
         {last ? (
-          <span className={s.reopenHint}>{t.garage.intro.reopenHint}</span>
+          <span className={s.reopenHint}>
+            {t.garage.intro.reopenHint}.{" "}
+            {/* The story did not answer: write, without hunting for the footer. */}
+            {t.feedback.introPrompt}{" "}
+            <button
+              type="button"
+              className={s.writeLink}
+              onClick={() => {
+                close();
+                showFeedback();
+              }}
+            >
+              {t.feedback.introLink}
+            </button>
+          </span>
         ) : (
           <button type="button" className={s.skip} onClick={close}>{t.garage.intro.skip}</button>
         )}

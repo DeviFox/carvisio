@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -204,6 +203,28 @@ func (h *Handler) RequireUser(next http.Handler) http.Handler {
 	})
 }
 
+// OptionalUser puts the signed-in user into the context when there is a
+// valid session and lets the request through either way: for endpoints open
+// to guests that still want to know who is writing.
+func (h *Handler) OptionalUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(cookieName)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		user, err := h.store.UserBySession(r.Context(), hashToken(c.Value))
+		if err != nil {
+			if !errors.Is(err, ErrNotFound) {
+				h.log.Error("load optional session", "err", err)
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, user)))
+	})
+}
+
 type userKey struct{}
 
 // UserFrom returns the user stored by RequireUser.
@@ -225,16 +246,7 @@ func (h *Handler) startSession(w http.ResponseWriter, r *http.Request, userID st
 }
 
 func (h *Handler) clientIP(r *http.Request) string {
-	if h.opts.TrustProxy {
-		if ip := r.Header.Get("X-Real-IP"); ip != "" {
-			return ip
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+	return httpx.ClientIP(r, h.opts.TrustProxy)
 }
 
 func (h *Handler) serverError(w http.ResponseWriter, op string, err error) {
