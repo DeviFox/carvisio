@@ -17,7 +17,7 @@ export const LOCALE_KEY = "carvisio.locale";
 // stored choice like any app page.
 export const LOCALIZED_PATHS = {
   home: { ru: "/", en: "/en/" },
-  journal: { ru: "/zhurnal-obsluzhivaniya-avtomobilya/", en: "/en/car-maintenance-log/" },
+  journal: { ru: "/journal/", en: "/en/car-maintenance-log/" },
   costs: { ru: "/car-expenses/", en: "/en/car-expense-tracker/" },
   parts: { ru: "/part-replacement/", en: "/en/car-parts-service-life/" },
 } as const satisfies Record<string, Record<Locale, string>>;
