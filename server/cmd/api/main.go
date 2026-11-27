@@ -82,7 +82,7 @@ func run(log *slog.Logger) error {
 		w.Write([]byte("ok"))
 	})
 	authHandler.Routes(mux)
-	garage.NewHandler(garage.NewStore(pool), log).Routes(mux, authHandler.RequireUser)
+	garage.NewHandler(garage.NewStore(pool), log, cfg.TrustProxy).Routes(mux, authHandler.RequireUser)
 	recognize.NewHandler(recognize.Config{
 		APIKey:          cfg.OpenRouterAPIKey,
 		Model:           cfg.OpenRouterModel,

@@ -4,29 +4,34 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/DeviFox/carfolio/server/internal/auth"
 	"github.com/DeviFox/carfolio/server/internal/httpx"
+	"github.com/DeviFox/carfolio/server/internal/ratelimit"
 )
 
 // A first import carries a whole browser garage at once.
 const maxChangesBytes = 16 << 20 // 16 MiB
 
 type Handler struct {
-	store *Store
-	log   *slog.Logger
+	store        *Store
+	log          *slog.Logger
+	trustProxy   bool
+	guestLimiter *ratelimit.Limiter
 }
 
-func NewHandler(store *Store, log *slog.Logger) *Handler {
-	return &Handler{store: store, log: log}
+func NewHandler(store *Store, log *slog.Logger, trustProxy bool) *Handler {
+	return &Handler{store: store, log: log, trustProxy: trustProxy, guestLimiter: ratelimit.New(60, 15*time.Minute)}
 }
 
-// Routes registers the garage endpoints behind requireUser, which must put
-// the signed-in user into the request context (auth.Handler.RequireUser).
+// Routes registers garage endpoints and the guest vehicle submission endpoint.
 func (h *Handler) Routes(mux *http.ServeMux, requireUser func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/garage", requireUser(http.HandlerFunc(h.load)))
 	mux.Handle("GET /api/garage/vehicles/{id}", requireUser(http.HandlerFunc(h.loadOtherVehicle)))
 	mux.Handle("POST /api/garage/changes", requireUser(http.HandlerFunc(h.apply)))
+	mux.HandleFunc("POST /api/garage/guest-vehicles", h.saveGuestVehicle)
+	mux.Handle("GET /api/garage/guest-vehicles", requireUser(http.HandlerFunc(h.listGuestVehicles)))
 }
 
 func (h *Handler) loadOtherVehicle(w http.ResponseWriter, r *http.Request) {

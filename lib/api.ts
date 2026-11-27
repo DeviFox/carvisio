@@ -1,4 +1,4 @@
-import type { GarageData, ID } from "./types";
+import type { GarageData, ID, Vehicle } from "./types";
 
 // Client for the Go API (server/). The API lives on its own domain
 // (api.carvisio.pro), so every call is cross-origin and carries the session
@@ -51,6 +51,7 @@ async function request<T>(
   path: string,
   body?: unknown,
   timeoutMs = 15_000,
+  options?: Pick<RequestInit, "credentials" | "keepalive">,
 ): Promise<T> {
   let res: Response;
   try {
@@ -61,6 +62,7 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
       // A hung API should end in an error, not in "Входим…" forever.
       signal: AbortSignal.timeout(timeoutMs),
+      ...options,
     });
   } catch {
     throw new ApiError(0, "network error");
@@ -86,6 +88,15 @@ export type FeedbackInput = {
   website?: string; // honeypot, always empty from a person
 };
 
+export type GuestVehicleFields = Pick<Vehicle, "make" | "model" | "fuelType" | "engine" | "bodyType" | "vin" | "currentMileageKm"> & {
+  year: number;
+};
+export type GuestVehicleSubmission = GuestVehicleFields & { submissionId: ID };
+export type GuestVehiclePage = {
+  vehicles: (GuestVehicleFields & { id: number; receivedAt: string })[];
+  nextBefore?: number;
+};
+
 export const api = {
   me: () => request<User>("GET", "/api/me"),
   register: (email: string, password: string) =>
@@ -98,6 +109,10 @@ export const api = {
     request<User>("POST", "/api/auth/password/reset", { token, password }),
   garage: () => request<GarageSnapshot>("GET", "/api/garage"),
   otherVehicle: (id: ID) => request<GarageSnapshot>("GET", `/api/garage/vehicles/${encodeURIComponent(id)}`),
+  submitGuestVehicle: (input: GuestVehicleSubmission) =>
+    request<void>("POST", "/api/garage/guest-vehicles", input, undefined, { credentials: "omit", keepalive: true }),
+  guestVehicles: (before?: number) =>
+    request<GuestVehiclePage>("GET", `/api/garage/guest-vehicles${before === undefined ? "" : `?before=${before}`}`),
   // A first import carries a whole garage: give it longer than a click.
   applyGarageChanges: (changes: GarageChanges, timeoutMs?: number) =>
     request<void>("POST", "/api/garage/changes", changes, timeoutMs),

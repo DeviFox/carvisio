@@ -13,6 +13,7 @@ import styles from "./add-car-dialog.module.css";
 import DeleteCar from "./delete-car";
 import { ArrowRightIcon, CloseIcon } from "./icons";
 import { useGarage } from "@/lib/store";
+import { recordGuestVehicle } from "@/lib/guest-vehicles";
 import { lockPageScroll } from "@/lib/use-modal";
 import { groupInt, groupedChange, intText } from "@/lib/number-input";
 import { BODY_TYPES, SEED_SYSTEMS, BodyType, Vehicle } from "@/lib/types";
@@ -181,6 +182,7 @@ export default function AddCarDialog({ open, onClose, onSaved, editVehicle, onDe
       savedId = editVehicle.id;
     } else {
       const vehicle = addVehicle(base);
+      recordGuestVehicle(base);
       // Seed the standard set of systems so every zone on the illustration is
       // interactive out of the box. Owner can archive what they don't track.
       // Named in the interface language; from then on the names are the owner's.

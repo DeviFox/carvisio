@@ -4,12 +4,14 @@ import { useEffect, useId, useRef, useState } from "react";
 import s from "./dialog.module.css";
 import { useModal } from "@/lib/use-modal";
 import { answerOffer, startSync, useSync } from "@/lib/sync";
+import { startGuestVehicleSync } from "@/lib/guest-vehicles";
 import { useT } from "@/lib/i18n/react";
 
 // Runs garage sync for the whole app (mounted once, in the root layout) and
 // asks the one question it can't answer alone.
 export default function GarageSync() {
   useEffect(startSync, []);
+  useEffect(startGuestVehicleSync, []);
   const offer = useSync((st) => st.offer);
   return offer ? <ImportOffer newCars={offer.newCars} accountCars={offer.accountCars} /> : null;
 }
