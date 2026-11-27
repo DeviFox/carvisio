@@ -2,7 +2,6 @@
 
 import { useId } from "react";
 import s from "./report-sheet.module.css";
-import { useGarage } from "@/lib/store";
 import {
   eventTypeLabel,
   bodyTypeLabel,
@@ -21,12 +20,15 @@ import {
   sortEventsByDateDesc,
   type ComponentStatus,
 } from "@/lib/compute";
-import type { Component, MaintenanceEvent, Vehicle } from "@/lib/types";
+import type { Component, GarageData, MaintenanceEvent, Vehicle } from "@/lib/types";
 import { formatDate, getLocale, tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/react";
 
+export type ReportData = Pick<GarageData, "systems" | "components" | "installedParts" | "inspections" | "events">;
+
 type Props = {
   vehicle: Vehicle;
+  data: ReportData;
   showCosts: boolean;
   showStatus: boolean;
   today: Date;
@@ -37,14 +39,10 @@ type Props = {
 // The car's maintenance history as a sheet of A4 paper. Rendered twice by
 // ReportPanel: once as the on-screen preview, once at the top of <body> for
 // printing, so both read the garage the same way.
-export default function ReportSheet({ vehicle, showCosts, showStatus, today, inline = false }: Props) {
+export default function ReportSheet({ vehicle, data, showCosts, showStatus, today, inline = false }: Props) {
   const uid = useId();
   const t = useT();
-  const systems = useGarage((st) => st.systems);
-  const components = useGarage((st) => st.components);
-  const installedParts = useGarage((st) => st.installedParts);
-  const inspections = useGarage((st) => st.inspections);
-  const events = useGarage((st) => st.events);
+  const { systems, components, installedParts, inspections, events } = data;
 
   const vehicleEvents = sortEventsByDateDesc(events.filter((e) => e.vehicleId === vehicle.id));
   const byId = new Map(components.map((c) => [c.id, c]));

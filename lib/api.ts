@@ -97,6 +97,7 @@ export const api = {
   resetPassword: (token: string, password: string) =>
     request<User>("POST", "/api/auth/password/reset", { token, password }),
   garage: () => request<GarageSnapshot>("GET", "/api/garage"),
+  otherVehicle: (id: ID) => request<GarageSnapshot>("GET", `/api/garage/vehicles/${encodeURIComponent(id)}`),
   // A first import carries a whole garage: give it longer than a click.
   applyGarageChanges: (changes: GarageChanges, timeoutMs?: number) =>
     request<void>("POST", "/api/garage/changes", changes, timeoutMs),

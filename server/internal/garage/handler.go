@@ -25,7 +25,30 @@ func NewHandler(store *Store, log *slog.Logger) *Handler {
 // the signed-in user into the request context (auth.Handler.RequireUser).
 func (h *Handler) Routes(mux *http.ServeMux, requireUser func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/garage", requireUser(http.HandlerFunc(h.load)))
+	mux.Handle("GET /api/garage/vehicles/{id}", requireUser(http.HandlerFunc(h.loadOtherVehicle)))
 	mux.Handle("POST /api/garage/changes", requireUser(http.HandlerFunc(h.apply)))
+}
+
+func (h *Handler) loadOtherVehicle(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	user := auth.UserFrom(r.Context())
+	id := r.PathValue("id")
+	if !user.CanViewOtherVehicles || !isUUID(id) {
+		httpx.Error(w, http.StatusNotFound, "vehicle not found")
+		return
+	}
+
+	g, err := h.store.LoadOtherVehicle(r.Context(), user.ID, id)
+	if errors.Is(err, ErrVehicleNotFound) {
+		httpx.Error(w, http.StatusNotFound, "vehicle not found")
+		return
+	}
+	if err != nil {
+		h.serverError(w, "load other vehicle", err)
+		return
+	}
+	h.log.Info("admin viewed vehicle", "user", user.ID, "vehicle", id)
+	httpx.WriteJSON(w, http.StatusOK, g)
 }
 
 func (h *Handler) load(w http.ResponseWriter, r *http.Request) {

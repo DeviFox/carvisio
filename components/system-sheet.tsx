@@ -14,7 +14,7 @@ type Props = {
   group: SystemGroup;
   onClose: () => void;
   onOpenComponent: (componentId: string) => void;
-  onAddComponent: (systemId: string) => void;
+  onAddComponent?: (systemId: string) => void;
 };
 
 // Phones and touch screens: a tap on the car opens the system here, in a
@@ -67,14 +67,16 @@ export default function SystemSheet({ group, onClose, onOpenComponent, onAddComp
               ))}
             </ul>
           ) : null}
-          <button
-            type="button"
-            className={rows.length === 0 ? l.addSlot : l.addLink}
-            onClick={() => onAddComponent(system.id)}
-          >
-            <PlusIcon />
-            <span>{t.car.addComponent}</span>
-          </button>
+          {onAddComponent && (
+            <button
+              type="button"
+              className={rows.length === 0 ? l.addSlot : l.addLink}
+              onClick={() => onAddComponent(system.id)}
+            >
+              <PlusIcon />
+              <span>{t.car.addComponent}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

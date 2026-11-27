@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import s from "./report-panel.module.css";
-import ReportSheet from "./report-sheet";
+import ReportSheet, { type ReportData } from "./report-sheet";
 import { ExportIcon } from "./icons";
 import type { Vehicle } from "@/lib/types";
 import { useT } from "@/lib/i18n/react";
 
 type Props = {
   vehicle: Vehicle;
+  data: ReportData;
   onClose: () => void;
 };
 
@@ -30,7 +31,7 @@ function readOptions(): Options {
 // a live preview, and the print / save-as-PDF action. A second copy of the
 // sheet sits at the top of <body>, hidden on screen, and is the only thing
 // the printer sees: printing the page in place would drag the app along.
-export default function ReportPanel({ vehicle, onClose }: Props) {
+export default function ReportPanel({ vehicle, data, onClose }: Props) {
   const t = useT();
   const [today] = useState(() => new Date());
   const [options, setOptions] = useState<Options>(readOptions);
@@ -56,6 +57,7 @@ export default function ReportPanel({ vehicle, onClose }: Props) {
 
   const sheetProps = {
     vehicle,
+    data,
     showCosts: options.costs,
     showStatus: options.status,
     today,

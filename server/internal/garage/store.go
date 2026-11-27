@@ -16,6 +16,8 @@ import (
 // e.g. a part for a car another device has already deleted.
 var ErrConflict = errors.New("references a missing record")
 
+var ErrVehicleNotFound = errors.New("vehicle not found")
+
 // Postgres error code for a FOREIGN KEY violation.
 const pgForeignKeyViolation = "23503"
 
@@ -31,32 +33,55 @@ func NewStore(db *pgxpool.Pool) *Store {
 // transaction, so they all see the same moment even while another device is
 // writing.
 func (s *Store) Load(ctx context.Context, userID string) (Garage, error) {
+	return s.load(ctx, userID, nil)
+}
+
+func (s *Store) LoadOtherVehicle(ctx context.Context, viewerID, vehicleID string) (Garage, error) {
+	return s.load(ctx, viewerID, &vehicleID)
+}
+
+func (s *Store) load(ctx context.Context, userID string, vehicleID *string) (Garage, error) {
 	var g Garage
 	opts := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 	err := pgx.BeginTxFunc(ctx, s.db, opts, func(tx pgx.Tx) error {
+		if vehicleID != nil {
+			// IDs are only unique within a garage. A direct link cannot
+			// distinguish duplicate IDs across accounts.
+			var ownerID string
+			err := tx.QueryRow(ctx, `
+				SELECT min(user_id::text) FROM vehicles WHERE id = $1
+				HAVING count(*) = 1`, *vehicleID).Scan(&ownerID)
+			if errors.Is(err, pgx.ErrNoRows) || (err == nil && ownerID == userID) {
+				return ErrVehicleNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("resolve vehicle owner: %w", err)
+			}
+			userID = ownerID
+		}
 		var err error
-		if g.Vehicles, err = loadVehicles(ctx, tx, userID); err != nil {
+		if g.Vehicles, err = loadVehicles(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("vehicles: %w", err)
 		}
-		if g.Systems, err = loadSystems(ctx, tx, userID); err != nil {
+		if g.Systems, err = loadSystems(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("systems: %w", err)
 		}
-		if g.Components, err = loadComponents(ctx, tx, userID); err != nil {
+		if g.Components, err = loadComponents(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("components: %w", err)
 		}
-		if g.InstalledParts, err = loadInstalledParts(ctx, tx, userID); err != nil {
+		if g.InstalledParts, err = loadInstalledParts(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("installed parts: %w", err)
 		}
-		if g.Events, err = loadEvents(ctx, tx, userID); err != nil {
+		if g.Events, err = loadEvents(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("events: %w", err)
 		}
-		if g.MileageHistory, err = loadMileage(ctx, tx, userID); err != nil {
+		if g.MileageHistory, err = loadMileage(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("mileage: %w", err)
 		}
-		if g.Inspections, err = loadInspections(ctx, tx, userID); err != nil {
+		if g.Inspections, err = loadInspections(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("inspections: %w", err)
 		}
-		if g.Reminders, err = loadReminders(ctx, tx, userID); err != nil {
+		if g.Reminders, err = loadReminders(ctx, tx, userID, vehicleID); err != nil {
 			return fmt.Errorf("reminders: %w", err)
 		}
 		return nil
@@ -66,8 +91,8 @@ func (s *Store) Load(ctx context.Context, userID string) (Garage, error) {
 
 // collect runs a query and scans every row with scan. It returns an empty
 // slice, not nil, so the JSON is [] rather than null.
-func collect[T any](ctx context.Context, tx pgx.Tx, sql, userID string, scan func(pgx.Rows, *T) error) ([]T, error) {
-	rows, err := tx.Query(ctx, sql, userID)
+func collect[T any](ctx context.Context, tx pgx.Tx, sql, userID string, vehicleID *string, scan func(pgx.Rows, *T) error) ([]T, error) {
+	rows, err := tx.Query(ctx, sql, userID, vehicleID)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +109,12 @@ func collect[T any](ctx context.Context, tx pgx.Tx, sql, userID string, scan fun
 	return out, rows.Err()
 }
 
-func loadVehicles(ctx context.Context, tx pgx.Tx, userID string) ([]Vehicle, error) {
+func loadVehicles(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]Vehicle, error) {
 	return collect(ctx, tx, `
 		SELECT id, name, make, model, year, fuel_type, engine, body_type, vin,
 		       current_mileage_km, units, created_at, updated_at
-		FROM vehicles WHERE user_id = $1
-		ORDER BY created_at, id`, userID,
+		FROM vehicles WHERE user_id = $1 AND ($2::uuid IS NULL OR id = $2)
+		ORDER BY created_at, id`, userID, vehicleID,
 		func(r pgx.Rows, x *Vehicle) error {
 			var created, updated time.Time
 			err := r.Scan(&x.ID, &x.Name, &x.Make, &x.Model, &x.Year, &x.FuelType, &x.Engine, &x.BodyType, &x.VIN,
@@ -99,21 +124,21 @@ func loadVehicles(ctx context.Context, tx pgx.Tx, userID string) ([]Vehicle, err
 		})
 }
 
-func loadSystems(ctx context.Context, tx pgx.Tx, userID string) ([]System, error) {
+func loadSystems(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]System, error) {
 	return collect(ctx, tx, `
 		SELECT id, vehicle_id, name, category, sort_order, is_archived
-		FROM vehicle_systems WHERE user_id = $1
-		ORDER BY vehicle_id, sort_order, id`, userID,
+		FROM vehicle_systems WHERE user_id = $1 AND ($2::uuid IS NULL OR vehicle_id = $2)
+		ORDER BY vehicle_id, sort_order, id`, userID, vehicleID,
 		func(r pgx.Rows, x *System) error {
 			return r.Scan(&x.ID, &x.VehicleID, &x.Name, &x.Category, &x.SortOrder, &x.IsArchived)
 		})
 }
 
-func loadComponents(ctx context.Context, tx pgx.Tx, userID string) ([]Component, error) {
+func loadComponents(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]Component, error) {
 	return collect(ctx, tx, `
 		SELECT id, vehicle_id, system_id, name, kind, fluid, axle, side, is_archived
-		FROM components WHERE user_id = $1
-		ORDER BY vehicle_id, system_id, name, id`, userID,
+		FROM components WHERE user_id = $1 AND ($2::uuid IS NULL OR vehicle_id = $2)
+		ORDER BY vehicle_id, system_id, name, id`, userID, vehicleID,
 		func(r pgx.Rows, x *Component) error {
 			return r.Scan(&x.ID, &x.VehicleID, &x.SystemID, &x.Name, &x.Kind, &x.Fluid, &x.Axle, &x.Side, &x.IsArchived)
 		})
@@ -121,38 +146,41 @@ func loadComponents(ctx context.Context, tx pgx.Tx, userID string) ([]Component,
 
 // Dates are read as text: Postgres prints a date as 2006-01-02, which is
 // exactly the client's format.
-func loadInstalledParts(ctx context.Context, tx pgx.Tx, userID string) ([]InstalledPart, error) {
+func loadInstalledParts(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]InstalledPart, error) {
 	return collect(ctx, tx, `
 		SELECT id, component_id, installed_at_mileage_km, installed_at_date::text,
 		       expected_life_km, expected_life_days, removed_at_mileage_km, removed_at_date::text, notes
 		FROM installed_parts WHERE user_id = $1
-		ORDER BY component_id, installed_at_date NULLS FIRST, id`, userID,
+		  AND ($2::uuid IS NULL OR component_id IN (
+		      SELECT id FROM components WHERE user_id = $1 AND vehicle_id = $2
+		  ))
+		ORDER BY component_id, installed_at_date NULLS FIRST, id`, userID, vehicleID,
 		func(r pgx.Rows, x *InstalledPart) error {
 			return r.Scan(&x.ID, &x.ComponentID, &x.InstalledAtMileageKm, &x.InstalledAtDate,
 				&x.ExpectedLifeKm, &x.ExpectedLifeDays, &x.RemovedAtMileageKm, &x.RemovedAtDate, &x.Notes)
 		})
 }
 
-func loadEvents(ctx context.Context, tx pgx.Tx, userID string) ([]Event, error) {
+func loadEvents(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]Event, error) {
 	return collect(ctx, tx, `
 		SELECT e.id, e.vehicle_id, e.type, e.date::text, e.mileage_km,
 		       coalesce((SELECT array_agg(ec.component_id ORDER BY ec.position)
 		                 FROM event_components ec
 		                 WHERE ec.user_id = e.user_id AND ec.event_id = e.id), '{}'),
 		       e.installed_part_id, e.cost_minor_units, e.currency, e.notes
-		FROM maintenance_events e WHERE e.user_id = $1
-		ORDER BY e.date, e.id`, userID,
+		FROM maintenance_events e WHERE e.user_id = $1 AND ($2::uuid IS NULL OR e.vehicle_id = $2)
+		ORDER BY e.date, e.id`, userID, vehicleID,
 		func(r pgx.Rows, x *Event) error {
 			return r.Scan(&x.ID, &x.VehicleID, &x.Type, &x.Date, &x.MileageKm, &x.ComponentIDs,
 				&x.InstalledPartID, &x.CostMinorUnits, &x.Currency, &x.Notes)
 		})
 }
 
-func loadMileage(ctx context.Context, tx pgx.Tx, userID string) ([]MileageEntry, error) {
+func loadMileage(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]MileageEntry, error) {
 	return collect(ctx, tx, `
 		SELECT id, vehicle_id, mileage_km, date, source
-		FROM mileage_entries WHERE user_id = $1
-		ORDER BY date, id`, userID,
+		FROM mileage_entries WHERE user_id = $1 AND ($2::uuid IS NULL OR vehicle_id = $2)
+		ORDER BY date, id`, userID, vehicleID,
 		func(r pgx.Rows, x *MileageEntry) error {
 			var date time.Time
 			err := r.Scan(&x.ID, &x.VehicleID, &x.MileageKm, &date, &x.Source)
@@ -161,21 +189,24 @@ func loadMileage(ctx context.Context, tx pgx.Tx, userID string) ([]MileageEntry,
 		})
 }
 
-func loadInspections(ctx context.Context, tx pgx.Tx, userID string) ([]Inspection, error) {
+func loadInspections(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]Inspection, error) {
 	return collect(ctx, tx, `
 		SELECT id, component_id, date::text, mileage_km, condition, notes
 		FROM inspections WHERE user_id = $1
-		ORDER BY date, id`, userID,
+		  AND ($2::uuid IS NULL OR component_id IN (
+		      SELECT id FROM components WHERE user_id = $1 AND vehicle_id = $2
+		  ))
+		ORDER BY date, id`, userID, vehicleID,
 		func(r pgx.Rows, x *Inspection) error {
 			return r.Scan(&x.ID, &x.ComponentID, &x.Date, &x.MileageKm, &x.Condition, &x.Notes)
 		})
 }
 
-func loadReminders(ctx context.Context, tx pgx.Tx, userID string) ([]Reminder, error) {
+func loadReminders(ctx context.Context, tx pgx.Tx, userID string, vehicleID *string) ([]Reminder, error) {
 	return collect(ctx, tx, `
 		SELECT id, vehicle_id, component_id, title, due_at_mileage_km, due_at_date::text, priority, status
-		FROM reminders WHERE user_id = $1
-		ORDER BY vehicle_id, id`, userID,
+		FROM reminders WHERE user_id = $1 AND ($2::uuid IS NULL OR vehicle_id = $2)
+		ORDER BY vehicle_id, id`, userID, vehicleID,
 		func(r pgx.Rows, x *Reminder) error {
 			return r.Scan(&x.ID, &x.VehicleID, &x.ComponentID, &x.Title, &x.DueAtMileageKm, &x.DueAtDate,
 				&x.Priority, &x.Status)

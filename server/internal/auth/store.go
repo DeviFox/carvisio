@@ -19,9 +19,10 @@ var (
 const pgUniqueViolation = "23505"
 
 type User struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID                   string    `json:"id"`
+	Email                string    `json:"email"`
+	CreatedAt            time.Time `json:"createdAt"`
+	CanViewOtherVehicles bool      `json:"-"`
 }
 
 // Store is the database access for users, sessions and password resets.
@@ -85,11 +86,11 @@ func (s *Store) UserBySession(ctx context.Context, tokenHash []byte) (User, erro
 			WHERE token_hash = $1
 			RETURNING user_id
 		)
-		SELECT u.id, u.email, u.created_at
+		SELECT u.id, u.email, u.created_at, u.can_view_other_vehicles
 		FROM users u
 		JOIN s ON s.user_id = u.id`,
 		tokenHash,
-	).Scan(&u.ID, &u.Email, &u.CreatedAt)
+	).Scan(&u.ID, &u.Email, &u.CreatedAt, &u.CanViewOtherVehicles)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound

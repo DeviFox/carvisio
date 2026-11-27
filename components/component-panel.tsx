@@ -6,7 +6,7 @@ import s from "./component-panel.module.css";
 import StatusPill from "./status-pill";
 import { CloseIcon, PencilIcon, PlusIcon } from "./icons";
 import { DaysInput } from "./add-event-parts";
-import { ComponentPositionField } from "./position-picker";
+import { ComponentPositionField, PositionBadge } from "./position-picker";
 import { useModal } from "@/lib/use-modal";
 import { groupInt, groupedChange, intText } from "@/lib/number-input";
 import { useGarage } from "@/lib/store";
@@ -34,7 +34,7 @@ type Props = {
   inspection?: ComponentInspection;
   onClose: () => void;
   // template — a previous record to prefill the form from.
-  onAddRecord: (type: MaintenanceType, template?: MaintenanceEvent) => void;
+  onAddRecord?: (type: MaintenanceType, template?: MaintenanceEvent) => void;
   onOpenEvent: (event: MaintenanceEvent) => void;
 };
 
@@ -87,11 +87,15 @@ export default function ComponentPanel({
       >
         <header className={s.header}>
           <div className={s.titleGroup}>
-            <EditableTitle id={titleId} componentId={component.id} name={component.name} />
+            {onAddRecord ? (
+              <EditableTitle id={titleId} componentId={component.id} name={component.name} />
+            ) : (
+              <h2 className={s.title} id={titleId}>{component.name}</h2>
+            )}
             <p className={s.subtitle}>{system.name}</p>
-            {POSITIONED_CATEGORIES.includes(system.category) && !component.fluid ? (
-              <ComponentPositionField component={component} />
-            ) : null}
+            {POSITIONED_CATEGORIES.includes(system.category) && !component.fluid && (
+              onAddRecord ? <ComponentPositionField component={component} /> : <PositionBadge value={component} />
+            )}
           </div>
           <button type="button" className={d.close} onClick={onClose} aria-label={t.common.close}>
             <CloseIcon />
@@ -181,7 +185,7 @@ export default function ComponentPanel({
             </dl>
           ) : null}
 
-          {part && (editingLife || lifeMissing) ? (
+          {onAddRecord && part && (editingLife || lifeMissing) ? (
             <LifeForm
               partId={part.id}
               initialKm={part.expectedLifeKm}
@@ -190,7 +194,7 @@ export default function ComponentPanel({
               onDone={() => setEditingLife(false)}
               onCancel={editingLife ? () => setEditingLife(false) : undefined}
             />
-          ) : part ? (
+          ) : onAddRecord && part ? (
             <button type="button" className={s.linkBtn} onClick={() => setEditingLife(true)}>
               {t.car.editLife}
             </button>
@@ -244,65 +248,67 @@ export default function ComponentPanel({
 
         {/* Removing a part is rare and final: a quiet link at the end of the
             sheet, away from the thumb's path to the primary actions below. */}
-        {confirmingDelete ? null : (
+        {onAddRecord && !confirmingDelete && (
           <button type="button" className={d.deleteLink} onClick={() => setConfirmingDelete(true)}>
             {t.car.deletePart}
           </button>
         )}
 
-        <footer className={s.footer}>
-          {confirmingDelete ? (
-            <div
-              className={`${d.deleteConfirm} ${s.confirm}`}
-              role="alertdialog"
-              aria-labelledby={`${titleId}-del`}
-              aria-describedby={`${titleId}-del-desc`}
-            >
-              <p id={`${titleId}-del`} className={d.deleteTitle}>{t.car.deleteNamed(component.name)}</p>
-              <p id={`${titleId}-del-desc`} className={d.deleteText}>
-                {deleteNote ? `${deleteNote} ` : ""}{t.records.cannotUndo}
-              </p>
-              <div className={d.deleteActions}>
-                <button
-                  ref={cancelDeleteRef}
-                  type="button"
-                  className={d.ghostBtn}
-                  onClick={() => setConfirmingDelete(false)}
-                >
-                  {t.records.keep}
-                </button>
-                <button
-                  type="button"
-                  className={d.dangerBtn}
-                  onClick={() => {
-                    onClose();
-                    deleteComponent(component.id);
-                  }}
-                >
-                  {t.car.deletePart}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className={s.footerActions}>
-                {lastReplacement ? (
+        {onAddRecord && (
+          <footer className={s.footer}>
+            {confirmingDelete ? (
+              <div
+                className={`${d.deleteConfirm} ${s.confirm}`}
+                role="alertdialog"
+                aria-labelledby={`${titleId}-del`}
+                aria-describedby={`${titleId}-del-desc`}
+              >
+                <p id={`${titleId}-del`} className={d.deleteTitle}>{t.car.deleteNamed(component.name)}</p>
+                <p id={`${titleId}-del-desc`} className={d.deleteText}>
+                  {deleteNote ? `${deleteNote} ` : ""}{t.records.cannotUndo}
+                </p>
+                <div className={d.deleteActions}>
                   <button
+                    ref={cancelDeleteRef}
                     type="button"
                     className={d.ghostBtn}
-                    onClick={() => onAddRecord("replacement", lastReplacement)}
+                    onClick={() => setConfirmingDelete(false)}
                   >
-                    {t.car.repeatReplacement}
+                    {t.records.keep}
                   </button>
-                ) : null}
-                <button type="button" className={d.primary} onClick={() => onAddRecord(firstRecord)}>
-                  <PlusIcon />
-                  {t.car.addRecord}
-                </button>
+                  <button
+                    type="button"
+                    className={d.dangerBtn}
+                    onClick={() => {
+                      onClose();
+                      deleteComponent(component.id);
+                    }}
+                  >
+                    {t.car.deletePart}
+                  </button>
+                </div>
               </div>
-            </>
-          )}
-        </footer>
+            ) : (
+              <>
+                <div className={s.footerActions}>
+                  {lastReplacement ? (
+                    <button
+                      type="button"
+                      className={d.ghostBtn}
+                      onClick={() => onAddRecord("replacement", lastReplacement)}
+                    >
+                      {t.car.repeatReplacement}
+                    </button>
+                  ) : null}
+                  <button type="button" className={d.primary} onClick={() => onAddRecord(firstRecord)}>
+                    <PlusIcon />
+                    {t.car.addRecord}
+                  </button>
+                </div>
+              </>
+            )}
+          </footer>
+        )}
       </div>
     </div>
   );

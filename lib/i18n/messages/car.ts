@@ -5,6 +5,9 @@ import { plural } from "../format";
 const ru = {
   notFound: "Автомобиль не найден",
   notFoundHint: "Возможно, запись удалена или адрес устарел.",
+  loadFailed: "Не удалось загрузить автомобиль",
+  retry: "Повторить",
+  adminView: "Просмотр администратором · Только чтение",
   editCar: "Изменить данные автомобиля",
   editCarShort: "Изменить данные",
   report: "Отчёт для PDF",
@@ -118,6 +121,9 @@ export type CarMessages = typeof ru;
 const en: CarMessages = {
   notFound: "Car not found",
   notFoundHint: "It may have been deleted, or the link is out of date.",
+  loadFailed: "Could not load the car",
+  retry: "Retry",
+  adminView: "Admin view · Read only",
   editCar: "Edit car details",
   editCarShort: "Edit details",
   report: "PDF report",

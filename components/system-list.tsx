@@ -74,7 +74,7 @@ type Props = {
   flashId: string | null;
   onToggle: (systemId: string) => void;
   onHover: (category: SystemCategory | null) => void;
-  onAddComponent: (systemId: string) => void;
+  onAddComponent?: (systemId: string) => void;
   onOpenComponent: (componentId: string) => void;
 };
 
@@ -137,14 +137,16 @@ export default function SystemList({
                     ))}
                   </ul>
                 ) : null}
-                <button
-                  type="button"
-                  className={rows.length === 0 ? s.addSlot : s.addLink}
-                  onClick={() => onAddComponent(system.id)}
-                >
-                  <PlusIcon />
-                  <span>{tr().car.addComponent}</span>
-                </button>
+                {onAddComponent && (
+                  <button
+                    type="button"
+                    className={rows.length === 0 ? s.addSlot : s.addLink}
+                    onClick={() => onAddComponent(system.id)}
+                  >
+                    <PlusIcon />
+                    <span>{tr().car.addComponent}</span>
+                  </button>
+                )}
               </div>
             ) : null}
           </li>

@@ -8,13 +8,14 @@ import { groupInt, groupMoney, groupedChange, intText } from "@/lib/number-input
 import { useConfirmClose, useModal } from "@/lib/use-modal";
 import { useGarage } from "@/lib/store";
 import { deleteEffect } from "@/lib/records";
-import { eventTypeLabel } from "@/lib/compute";
+import { eventTypeLabel, formatDay, formatKm, formatMoney } from "@/lib/compute";
 import { useT } from "@/lib/i18n/react";
-import type { MaintenanceEvent, Vehicle } from "@/lib/types";
+import type { Component, MaintenanceEvent } from "@/lib/types";
 
 type Props = {
   event: MaintenanceEvent;
-  vehicle: Vehicle;
+  components: Component[];
+  readOnly?: boolean;
   onClose: () => void;
   // Opens the full record form on this event to change its type or component;
   // draft carries what was typed here so far, so switching loses nothing.
@@ -26,13 +27,12 @@ type Errors = Partial<Record<"date" | "mileage" | "cost" | "notes", string>>;
 
 // Edit or delete one recorded event. Type and component are changed in the
 // full record form (onChangeKind), which saves the result in this one's place.
-export default function EventDialog({ event, vehicle, onClose, onChangeKind }: Props) {
+export default function EventDialog({ event, components, readOnly, onClose, onChangeKind }: Props) {
   const titleId = useId();
   const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
-  const components = useGarage((st) => st.components);
   const installedParts = useGarage((st) => st.installedParts);
   const updateEvent = useGarage((st) => st.updateEvent);
   const deleteEvent = useGarage((st) => st.deleteEvent);
@@ -53,7 +53,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const requestClose = useConfirmClose([date, mileage, cost, currency, notes], onClose);
-  const { overlayClick, trapTab, stacked } = useModal(true, requestClose, firstFieldRef);
+  const { overlayClick, trapTab, stacked } = useModal(true, requestClose, readOnly ? dialogRef : firstFieldRef);
 
   useEffect(() => {
     if (confirming) cancelDeleteRef.current?.focus();
@@ -126,6 +126,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         onKeyDown={(e) => trapTab(e, dialogRef.current)}
       >
         <div className={s.header}>
@@ -134,7 +135,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
               {eventTypeLabel(event.type)}
               {names ? `: ${names}` : ""}
             </h2>
-            {onChangeKind ? (
+            {!readOnly && onChangeKind ? (
               <button type="button" className={s.subtitleLink} onClick={() => onChangeKind(draft())}>
                 {t.records.changeKind}
               </button>
@@ -145,7 +146,33 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
           </button>
         </div>
 
-        <form className={s.form} onSubmit={onSubmit} noValidate>
+        {readOnly && (
+          <dl className={`${s.form} ${s.recordDetails}`}>
+            <div className={s.field}>
+              <dt className={s.label}>{t.records.date}</dt>
+              <dd>{formatDay(event.date)}</dd>
+            </div>
+            {event.mileageKm !== undefined && (
+              <div className={s.field}>
+                <dt className={s.label}>{t.records.mileage}</dt>
+                <dd>{formatKm(event.mileageKm)}</dd>
+              </div>
+            )}
+            {event.costMinorUnits !== undefined && (
+              <div className={s.field}>
+                <dt className={s.label}>{t.records.cost}</dt>
+                <dd>{formatMoney(event.costMinorUnits, event.currency)}</dd>
+              </div>
+            )}
+            {event.notes && (
+              <div className={s.field}>
+                <dt className={s.label}>{isNote ? t.records.noteText : t.records.note}</dt>
+                <dd className={s.recordNotes}>{event.notes}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+        {!readOnly && <form className={s.form} onSubmit={onSubmit} noValidate>
           <div className={s.row}>
             <div className={s.field}>
               <label className={s.label} htmlFor="ev-date">{t.records.date}</label>
@@ -268,7 +295,7 @@ export default function EventDialog({ event, vehicle, onClose, onChangeKind }: P
               </button>
             </div>
           </div>
-        </form>
+        </form>}
       </div>
     </div>
   );

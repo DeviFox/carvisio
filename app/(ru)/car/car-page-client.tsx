@@ -26,6 +26,8 @@ import {
 	PencilIcon,
 	ExportIcon,
 } from "@/components/icons";
+import {api, ApiError, type GarageSnapshot} from "@/lib/api";
+import {useAuth} from "@/lib/auth";
 import {useGarage} from "@/lib/store";
 import {useT} from "@/lib/i18n/react";
 import {useHydrated} from "@/lib/use-hydrated";
@@ -46,8 +48,11 @@ import type {MaintenanceEvent, MaintenanceType, SystemCategory} from "@/lib/type
 
 export default function CarPageClient() {
 	const searchParams = useSearchParams();
-	const id           = searchParams.get("id") ?? "";
+	const id = searchParams.get("id") ?? "";
+	return <CarPage key={id} id={id} initialReportOpen={searchParams.get("view") === "report"}/>;
+}
 
+function CarPage({id, initialReportOpen}: {id: string; initialReportOpen: boolean}) {
 	const router                        = useRouter();
 	const hydrated                      = useHydrated();
 	const t                             = useT();
@@ -71,7 +76,7 @@ export default function CarPageClient() {
 	// The report takes the ledger's place. Local state answers at once (a
 	// zone click closes it and scrolls in the same frame); the address mirrors
 	// it, so the browser's Back closes the report and a reload keeps it.
-	const [reportOpen, setReportOpen]   = useState(() => searchParams.get("view") === "report");
+	const [reportOpen, setReportOpen]   = useState(initialReportOpen);
 	const reportPushed                  = useRef(false);
 	const [helpOpen, setHelpOpen]       = useState(false);
 	// Set while a delete navigates away, so the page doesn't flash "не найден".
@@ -82,16 +87,54 @@ export default function CarPageClient() {
 	const [expandedFor, setExpandedFor]     = useState<string | null>(null);
 	const [flashId, setFlashId]             = useState<string | null>(null);
 
-	const vehicle        = useGarage((s) => s.vehicles.find((v) => v.id === id));
-	const systems        = useGarage((s) => s.systems);
-	const components     = useGarage((s) => s.components);
-	const installedParts = useGarage((s) => s.installedParts);
-	const inspections    = useGarage((s) => s.inspections);
-	const events         = useGarage((s) => s.events);
-	const mileageHistory = useGarage((s) => s.mileageHistory);
-	const setLastViewed  = useGarage((s) => s.setLastViewedVehicle);
-	const deleteVehicle  = useGarage((s) => s.deleteVehicle);
-	const vehicleId      = vehicle?.id;
+	const ownedVehicle     = useGarage((s) => s.vehicles.find((v) => v.id === id));
+	const ownedSystems     = useGarage((s) => s.systems);
+	const ownedComponents  = useGarage((s) => s.components);
+	const ownedParts       = useGarage((s) => s.installedParts);
+	const ownedInspections = useGarage((s) => s.inspections);
+	const ownedEvents      = useGarage((s) => s.events);
+	const ownedMileage     = useGarage((s) => s.mileageHistory);
+	const setLastViewed    = useGarage((s) => s.setLastViewedVehicle);
+	const deleteVehicle    = useGarage((s) => s.deleteVehicle);
+	const authStatus       = useAuth((s) => s.status);
+	const viewerId         = useAuth((s) => s.user?.id);
+	const [attempt, setAttempt] = useState(0);
+	const [lookup, setLookup] = useState<{
+		viewerId: string;
+		attempt: number;
+		garage?: GarageSnapshot;
+		failed?: boolean;
+	} | null>(null);
+	const result = lookup?.viewerId === viewerId && lookup?.attempt === attempt ? lookup : null;
+	// Keep admin views out of the garage store, local storage and sync outbox.
+	const remote = ownedVehicle ? undefined : result?.garage;
+	const vehicle = ownedVehicle ?? remote?.vehicles[0];
+	const systems = remote?.systems ?? ownedSystems;
+	const components = remote?.components ?? ownedComponents;
+	const installedParts = remote?.installedParts ?? ownedParts;
+	const inspections = remote?.inspections ?? ownedInspections;
+	const events = remote?.events ?? ownedEvents;
+	const mileageHistory = remote?.mileageHistory ?? ownedMileage;
+	const vehicleId = vehicle?.id;
+	const ownedVehicleId = ownedVehicle?.id;
+	const vanished = hydrated && !vehicle && id !== "" && expandedFor === id;
+	const canLookUp = hydrated && !ownedVehicle && !vanished && !!viewerId && id !== "";
+
+	useEffect(() => {
+		if (!canLookUp || !viewerId) return;
+		let active = true;
+		void api.otherVehicle(id).then(
+			(garage) => {
+				if (active) setLookup({viewerId, attempt, garage});
+			},
+			(err: unknown) => {
+				if (!active) return;
+				const unavailable = err instanceof ApiError && (err.status === 401 || err.status === 404);
+				setLookup({viewerId, attempt, failed: !unavailable});
+			},
+		);
+		return () => { active = false; };
+	}, [attempt, canLookUp, id, viewerId]);
 
 	useEffect(() => {
 		const onPop = () => {
@@ -103,26 +146,26 @@ export default function CarPageClient() {
 	}, []);
 
 	useEffect(() => {
-		if (vehicleId) setLastViewed(vehicleId);
-	}, [vehicleId, setLastViewed]);
+		if (ownedVehicleId) setLastViewed(ownedVehicleId);
+	}, [ownedVehicleId, setLastViewed]);
 
 	// Open systems are a per-viewer convenience, remembered per car: read
 	// them again whenever the page switches to another car.
 	if (hydrated && vehicleId && vehicleId !== expandedFor) {
 		setExpandedFor(vehicleId);
-		setExpanded(readOpen(vehicleId));
+		setExpanded(remote ? new Set() : readOpen(vehicleId));
 	}
 
 	// The car was on screen and is gone: signed out (the account's garage
 	// leaves the browser), session expired, or deleted on another device.
 	// That's not a bad link, so go to the garage instead of "не найден".
 	// expandedFor is set the first time this car is shown.
-	const vanished = hydrated && !vehicle && id !== "" && expandedFor === id;
 	useEffect(() => {
 		if (vanished) router.replace("/");
 	}, [vanished, router]);
 
-	if (!hydrated || leaving || vanished) {
+	const waiting = !vehicle && id !== "" && (authStatus === "unknown" || (canLookUp && !result));
+	if (!hydrated || leaving || vanished || waiting) {
 		return <div className={shellStyles.shell} aria-busy="true"/>;
 	}
 
@@ -147,15 +190,15 @@ export default function CarPageClient() {
 				<AppBar home/>
 				<main className={shellStyles.main}>
 					<div className={styles.notFound}>
-						<h1 className={shellStyles.h1}>{t.car.notFound}</h1>
-						<p className={shellStyles.sub}>{t.car.notFoundHint}</p>
+						<h1 className={shellStyles.h1}>{result?.failed ? t.car.loadFailed : t.car.notFound}</h1>
+						{!result?.failed && <p className={shellStyles.sub}>{t.car.notFoundHint}</p>}
 						<button
 							type="button"
 							className={`${shellStyles.primaryBtn} ${styles.notFoundBtn}`}
-							onClick={() => router.push("/")}
+							onClick={() => result?.failed ? setAttempt(attempt + 1) : router.push("/")}
 						>
-							<ArrowLeftIcon/>
-							{t.garage.toGarage}
+							{!result?.failed && <ArrowLeftIcon/>}
+							{result?.failed ? t.car.retry : t.garage.toGarage}
 						</button>
 					</div>
 				</main>
@@ -213,6 +256,7 @@ export default function CarPageClient() {
 	const availableZones = vehicleSystems.map((s) => s.category);
 
 	function persistOpen(next: Set<string>) {
+		if (remote) return;
 		try {
 			localStorage.setItem(openKey(vehicle!.id), JSON.stringify([...next]));
 		} catch {
@@ -329,15 +373,17 @@ export default function CarPageClient() {
 							    the heading's accessible name is just the car. */}
 							<div className={styles.carTitle}>
 								<h1 className={styles.carName}>{vehicle.name}</h1>
-								<button
-									type="button"
-									className={styles.editBtn}
-									onClick={() => setEditOpen(true)}
-									aria-label={t.car.editCar}
-									title={t.car.editCarShort}
-								>
-									<PencilIcon/>
-								</button>
+								{!remote && (
+									<button
+										type="button"
+										className={styles.editBtn}
+										onClick={() => setEditOpen(true)}
+										aria-label={t.car.editCar}
+										title={t.car.editCarShort}
+									>
+										<PencilIcon/>
+									</button>
+								)}
 								<button
 									type="button"
 									className={styles.editBtn}
@@ -359,6 +405,7 @@ export default function CarPageClient() {
 									.filter(Boolean)
 									.join(" · ") || "—"}
 							</p>
+							{remote && <p className={styles.carMeta}>{t.car.adminView}</p>}
 							{vehicle.vin ? (
 								<p className={styles.carVin}>
 									<span className={styles.carVinLabel}>{t.car.vin}</span>
@@ -366,14 +413,16 @@ export default function CarPageClient() {
 								</p>
 							) : null}
 						</div>
-						<button
-							type="button"
-							className={`${shellStyles.primaryBtn} ${styles.headCta} ${reportOpen ? styles.ctaHidden : ""}`}
-							onClick={() => setRecord({})}
-						>
-							<PlusIcon/>
-							{t.car.addRecord}
-						</button>
+						{!remote && (
+							<button
+								type="button"
+								className={`${shellStyles.primaryBtn} ${styles.headCta} ${reportOpen ? styles.ctaHidden : ""}`}
+								onClick={() => setRecord({})}
+							>
+								<PlusIcon/>
+								{t.car.addRecord}
+							</button>
+						)}
 					</header>
 
 					<div className={`${styles.layout} ${reportOpen ? styles.reporting : ""}`}>
@@ -431,13 +480,15 @@ export default function CarPageClient() {
 											</div>
 										) : null}
 									</div>
-									<button
-										type="button"
-										className={styles.ghostAction}
-										onClick={() => setMileageOpen(true)}
-									>
-										{vehicle.currentMileageKm === undefined ? t.car.setMileage : t.car.updateMileage}
-									</button>
+									{!remote && (
+										<button
+											type="button"
+											className={styles.ghostAction}
+											onClick={() => setMileageOpen(true)}
+										>
+											{vehicle.currentMileageKm === undefined ? t.car.setMileage : t.car.updateMileage}
+										</button>
+									)}
 								</div>
 								{hasComponents ? (
 									<AttentionList
@@ -451,7 +502,11 @@ export default function CarPageClient() {
 
 						<div className={styles.ledger} id="car-ledger">
 							{reportOpen ? (
-								<ReportPanel vehicle={vehicle} onClose={closeReport}/>
+								<ReportPanel
+									vehicle={vehicle}
+									onClose={closeReport}
+									data={{systems, components, installedParts, inspections, events}}
+								/>
 							) : (
 							<section className={styles.systems} aria-label={t.car.carSystems}>
 								{groups.length === 0 ? (
@@ -463,7 +518,7 @@ export default function CarPageClient() {
 										flashId={flashId}
 										onToggle={toggleSystem}
 										onHover={setHoveredSystem}
-										onAddComponent={(systemId) => setRecord({systemId})}
+										onAddComponent={remote ? undefined : (systemId) => setRecord({systemId})}
 										onOpenComponent={setOpenComponentId}
 									/>
 								)}
@@ -485,21 +540,23 @@ export default function CarPageClient() {
 					</div>
 				</main>
 				<VersionTag/>
-				<div className={styles.ctaSpacer} aria-hidden="true"/>
+				{!remote && <div className={styles.ctaSpacer} aria-hidden="true"/>}
 			</div>
 
 			{helpOpen ? <IntroCard onClose={() => setHelpOpen(false)}/> : null}
-			<UpdateMileageDialog
-				open={mileageOpen}
-				onClose={() => setMileageOpen(false)}
-				vehicle={vehicle}
-			/>
+			{!remote && (
+				<UpdateMileageDialog
+					open={mileageOpen}
+					onClose={() => setMileageOpen(false)}
+					vehicle={vehicle}
+				/>
+			)}
 			{sheetGroup ? (
 				<SystemSheet
 					group={sheetGroup}
 					onClose={() => setSheetSystemId(null)}
 					onOpenComponent={setOpenComponentId}
-					onAddComponent={(systemId) => setRecord({systemId})}
+					onAddComponent={remote ? undefined : (systemId) => setRecord({systemId})}
 				/>
 			) : null}
 			{/* Stays open under its dialogs, so the history is there to check against. */}
@@ -510,11 +567,11 @@ export default function CarPageClient() {
 					events={vehicleEvents}
 					inspection={latestInspectionFor(openRow.component.id, inspections)}
 					onClose={() => setOpenComponentId(null)}
-					onAddRecord={(type, template) => setRecord({componentId: openRow.component.id, type, template})}
+					onAddRecord={remote ? undefined : (type, template) => setRecord({componentId: openRow.component.id, type, template})}
 					onOpenEvent={(e) => setEditEventId(e.id)}
 				/>
 			) : null}
-			{record ? (
+			{!remote && record ? (
 				<AddEventDialog
 					open
 					onClose={() => setRecord(null)}
@@ -529,9 +586,10 @@ export default function CarPageClient() {
 			{editEvent ? (
 				<EventDialog
 					event={editEvent}
-					vehicle={vehicle}
+					components={components}
+					readOnly={!!remote}
 					onClose={() => setEditEventId(null)}
-					onChangeKind={(draft) => {
+					onChangeKind={remote ? undefined : (draft) => {
 						setEditEventId(null);
 						// Next frame: once this dialog has left the modal stack, the
 						// form opens as a top-level dialog, not one stacked over it.
@@ -539,17 +597,19 @@ export default function CarPageClient() {
 					}}
 				/>
 			) : null}
-			<AddCarDialog
-				open={editOpen}
-				onClose={() => setEditOpen(false)}
-				editVehicle={vehicle}
-				onDelete={() => {
-					setLeaving(true);
-					setEditOpen(false);
-					deleteVehicle(vehicle.id);
-					router.replace("/");
-				}}
-			/>
+			{!remote && (
+				<AddCarDialog
+					open={editOpen}
+					onClose={() => setEditOpen(false)}
+					editVehicle={vehicle}
+					onDelete={() => {
+						setLeaving(true);
+						setEditOpen(false);
+						deleteVehicle(vehicle.id);
+						router.replace("/");
+					}}
+				/>
+			)}
 		</>
 	);
 }
